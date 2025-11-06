@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 
@@ -20,13 +20,37 @@ const Aut = () => {
   // Estado para el tipo de alerta (success, danger)
   const [alertType, setAlertType] = useState('danger');
 
+  /**
+   * Redirigir al módulo correspondiente según el rol
+   * @param {string} role - Rol del usuario
+   */
+  const redirectToUserModule = useCallback((role) => {
+    switch (role.toLowerCase()) {
+      case 'rrhh':
+        navigate('/rrhh');
+        break;
+      case 'administrador':
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'solicitante':
+      case 'empleado':
+        navigate('/registro');
+        break;
+      default:
+        console.error('Rol no reconocido:', role);
+        setAlert('Error: Rol de usuario no reconocido.');
+        setAlertType('danger');
+    }
+  }, [navigate]);
+
   // Verificar si ya está autenticado al cargar el componente
   useEffect(() => {
     if (authService.isAuthenticated()) {
       const user = authService.getCurrentUser();
       redirectToUserModule(authService.mapRole(user.rol));
     }
-  }, []);
+  }, [redirectToUserModule]);
 
   // Manejar cambios en el formulario
   const handleInputChange = (e) => {
@@ -83,27 +107,6 @@ const Aut = () => {
       const mappedRole = authService.mapRole(user_data.rol);
       redirectToUserModule(mappedRole);
     }, 1500);
-  };
-
-  /**
-   * Redirigir al módulo correspondiente según el rol
-   * @param {string} role - Rol del usuario
-   */
-  const redirectToUserModule = (role) => {
-    switch (role.toLowerCase()) {
-      case 'rrhh':
-        navigate('/rrhh');
-        break;
-      case 'administrador':
-      case 'admin':
-        navigate('/admin');
-        break;
-      default:
-        console.warn('Rol no reconocido:', role);
-        setAlert('Rol de usuario no válido.');
-        setAlertType('danger');
-        setIsLoading(false);
-    }
   };
 
   return (

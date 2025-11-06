@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './Navbar';
 import papeletaService from '../services/papeletaService';
 
@@ -122,7 +122,7 @@ const RRHH = () => {
   };
 
   // Función para cargar papeletas desde la API
-  const cargarPapeletas = async () => {
+  const cargarPapeletas = useCallback(async () => {
     setCargandoPapeletas(true);
     setErrorPapeletas('');
     
@@ -138,12 +138,23 @@ const RRHH = () => {
     } finally {
       setCargandoPapeletas(false);
     }
-  };
+  }, []);
+
+  // Funciones de paginación
+  const calcularPaginacion = useCallback((datos) => {
+    const total = Math.ceil(datos.length / elementosPorPagina);
+    setTotalPaginas(total);
+    
+    // Si la página actual es mayor que el total, resetear a la primera página
+    if (paginaActual > total && total > 0) {
+      setPaginaActual(1);
+    }
+  }, [elementosPorPagina, paginaActual]);
 
   // Cargar papeletas al montar el componente
   useEffect(() => {
     cargarPapeletas();
-  }, []);
+  }, [cargarPapeletas]);
 
   // Cerrar selectores al hacer clic fuera
   useEffect(() => {
@@ -189,7 +200,7 @@ const RRHH = () => {
     
     // Calcular paginación con los datos filtrados
     calcularPaginacion(resultado);
-  }, [filtros, papeletas, elementosPorPagina]);
+  }, [filtros, papeletas, elementosPorPagina, calcularPaginacion]);
 
   // Resetear a la primera página cuando cambien los filtros
   useEffect(() => {
@@ -300,17 +311,6 @@ const RRHH = () => {
     setMostrarModalDetalle(false);
     setPapeletaDetalle(null);
     setErrorDetalle('');
-  };
-
-  // Funciones de paginación
-  const calcularPaginacion = (datos) => {
-    const total = Math.ceil(datos.length / elementosPorPagina);
-    setTotalPaginas(total);
-    
-    // Si la página actual es mayor que el total, resetear a la primera página
-    if (paginaActual > total && total > 0) {
-      setPaginaActual(1);
-    }
   };
 
   const obtenerDatosPaginaActual = (datos) => {
