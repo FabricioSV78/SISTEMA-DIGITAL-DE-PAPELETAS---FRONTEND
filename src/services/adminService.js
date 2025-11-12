@@ -1,5 +1,5 @@
 // Servicio de administración para manejar las llamadas a la API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sistema-digital-de-papeletas-backend-production.up.railway.app/';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sistema-digital-de-papeletas-backend-production.up.railway.app';
 
 class AdminService {
   /**
