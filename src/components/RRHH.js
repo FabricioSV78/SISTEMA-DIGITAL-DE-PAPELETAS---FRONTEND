@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './Navbar';
 import papeletaService from '../services/papeletaService';
+import PanelEstadisticas from './RRHH/Estadisticas/PanelEstadisticas';
 
 const RRHH = () => {
   // Estados para las estadísticas
@@ -15,7 +16,7 @@ const RRHH = () => {
   const [filtros, setFiltros] = useState({
     dni: '',
     fecha: '',
-    area: ''
+    motivo: ''
   });
 
   // Manejar checkbox "Sin retorno" - Versión React del script original
@@ -85,6 +86,9 @@ const RRHH = () => {
   // Estados para selectores de tiempo personalizados
   const [mostrarSelectorSalida, setMostrarSelectorSalida] = useState(false);
   const [mostrarSelectorRetorno, setMostrarSelectorRetorno] = useState(false);
+
+  // Estados para el panel de estadísticas
+  const [mostrarPanelEstadisticas, setMostrarPanelEstadisticas] = useState(false);
 
   // Función para calcular estadísticas dinámicas
   const calcularEstadisticas = (papeletas) => {
@@ -189,10 +193,10 @@ const RRHH = () => {
       );
     }
 
-    // Filtrar por área
-    if (filtros.area) {
+    // Filtrar por motivo
+    if (filtros.motivo) {
       resultado = resultado.filter(p => 
-        p.area === filtros.area
+        p.motivo === filtros.motivo
       );
     }
 
@@ -279,7 +283,7 @@ const RRHH = () => {
     setFiltros({
       dni: '',
       fecha: '',
-      area: '',
+      motivo: '',
       estado: ''
     });
   };
@@ -410,7 +414,8 @@ const RRHH = () => {
   const ComponenteSelectorTiempo = ({ tipo, mostrar, onCerrar, valorActual }) => {
     if (!mostrar) return null;
     
-    const [horaActual, minutosActuales] = valorActual ? valorActual.split(':').map(Number) : [new Date().getHours(), new Date().getMinutes()];
+    // No establecer hora actual por defecto, dejar vacío hasta que el usuario seleccione
+    const [horaActual, minutosActuales] = valorActual ? valorActual.split(':').map(Number) : [0, 0];
     
     const horas = Array.from({ length: 24 }, (_, i) => i);
     const minutos = [0, 15, 30, 45];
@@ -1149,7 +1154,17 @@ const RRHH = () => {
           {/* Filtros */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
-              <h5 className="fw-semibold text-primary mb-3">Filtrar y Consultar Papeletas</h5>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="fw-semibold text-primary mb-0">Filtrar y Consultar Papeletas</h5>
+                <button 
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => setMostrarPanelEstadisticas(true)}
+                >
+                  <i className="bi bi-bar-chart-line me-2"></i>
+                  Ver Estadísticas
+                </button>
+              </div>
               <form className="row g-3">
                 <div className="col-12 col-sm-6 col-md-3">
                   <input 
@@ -1173,20 +1188,15 @@ const RRHH = () => {
                 <div className="col-12 col-sm-6 col-md-3">
                   <select 
                     className="form-select"
-                    name="area"
-                    value={filtros.area}
+                    name="motivo"
+                    value={filtros.motivo}
                     onChange={handleFiltroChange}
                   >
-                    <option value="">Seleccionar área</option>
-                    <option value="Recursos Humanos">Recursos Humanos</option>
-                    <option value="Logística">Logística</option>
-                    <option value="Contabilidad">Contabilidad</option>
-                    <option value="Desarrollo Urbano">Desarrollo Urbano</option>
-                    <option value="Gerencia Municipal">Gerencia Municipal</option>
-                    <option value="Secretaría General">Secretaría General</option>
-                    <option value="Trámite Documentario">Trámite Documentario</option>
-                    <option value="Planeamiento y Presupuesto">Planeamiento y Presupuesto</option>
-                    <option value="Servicios Públicos">Servicios Públicos</option>
+                    <option value="">Seleccionar motivo</option>
+                    <option value="Comisión de servicios">Comisión de servicios</option>
+                    <option value="Atención médica">Atención médica</option>
+                    <option value="Capacitación">Capacitación</option>
+                    <option value="Asuntos particulares">Asuntos particulares</option>
                   </select>
                 </div>
 
@@ -1567,6 +1577,13 @@ const RRHH = () => {
         <footer className="text-center text-muted py-3 small">
           © 2025 Municipalidad Provincial de San Miguel — Módulo de Registro RRHH - Sistema Digital de Papeletas
         </footer>
+
+        {/* Panel de Estadísticas */}
+        <PanelEstadisticas
+          papeletas={papeletas}
+          isVisible={mostrarPanelEstadisticas}
+          onClose={() => setMostrarPanelEstadisticas(false)}
+        />
       </div>
     </>
   );
