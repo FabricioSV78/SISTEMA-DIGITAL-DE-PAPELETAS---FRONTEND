@@ -1,5 +1,5 @@
 // Configuración base de la API
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://sistema-digital-de-papeletas-backend-production.up.railway.app/';
 
 class PapeletaService {
   

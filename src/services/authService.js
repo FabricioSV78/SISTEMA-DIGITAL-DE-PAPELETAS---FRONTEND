@@ -1,5 +1,5 @@
 // Servicio de autenticación para manejar las llamadas a la API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sistema-digital-de-papeletas-backend-production.up.railway.app/';
 
 class AuthService {
   /**
