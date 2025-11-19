@@ -122,7 +122,6 @@ const RRHH = () => {
     papeletaForm,
     sinRetorno,
     cargando,
-    mensaje,
     buscandoEmpleado,
     empleadoEncontrado,
     mensajeEmpleado,
@@ -131,7 +130,7 @@ const RRHH = () => {
     seleccionarHora,
     handleSubmit: handleSubmitPapeleta,
     limpiarFormulario: handleLimpiarForm,
-    setMensaje
+    
   } = useFormularioPapeleta(cargarPapeletas, setMensajeRegistro);
 
   const {
