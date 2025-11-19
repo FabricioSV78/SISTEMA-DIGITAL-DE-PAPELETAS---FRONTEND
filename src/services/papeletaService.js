@@ -59,20 +59,52 @@ class PapeletaService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
-        
+
+        // 401 - sesión
         if (response.status === 401) {
           // Token inválido o expirado
           sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
           sessionStorage.removeItem(STORAGE_KEYS.USER);
           throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
         }
-        
+
+        // 422 - validación (Pydantic) -> buscar error por campo
         if (response.status === 422) {
-          // Error de validación
+          const errorsArray = errorData.errors || errorData.details || null;
+          if (Array.isArray(errorsArray)) {
+            // Si hay un error en el campo 'codigo', devolverlo como fieldError
+            const codigoErr = errorsArray.find(er => er.field === 'codigo' || (er.loc && Array.isArray(er.loc) && er.loc.includes('codigo')) );
+            if (codigoErr) {
+              return { exito: false, mensaje: codigoErr.message || 'Código inválido', fieldError: { field: 'codigo', message: codigoErr.message || 'Código inválido' } };
+            }
+            // Si no, devolver un mensaje general con concatenación
+            const summary = errorsArray.map(e => e.message || JSON.stringify(e)).join('; ');
+            return { exito: false, mensaje: `Errores de validación: ${summary}` };
+          }
+
           const validationErrors = errorData.errors || errorData.details || errorData.message;
-          throw new Error(`Error de validación: ${JSON.stringify(validationErrors)}`);
+          return { exito: false, mensaje: `Error de validación: ${JSON.stringify(validationErrors)}` };
         }
-        
+
+        // 409 - conflicto (p. ej. código duplicado) -> backend devuelve { error: { field, code, message } }
+        if (response.status === 409 && errorData) {
+          const errObj = errorData.error || errorData;
+          if (errObj && (errObj.field === 'codigo' || String(errObj.message || '').toLowerCase().includes('codigo') || String(errObj.code || '').toLowerCase().includes('duplicate'))) {
+            const friendly = 'papeleta ya registrada';
+            return { exito: false, mensaje: friendly, fieldError: { field: 'codigo', message: friendly } };
+          }
+          return { exito: false, mensaje: errObj.message || JSON.stringify(errObj) };
+        }
+
+        // Manejo de código duplicado antiguo (400 with detail)
+        if (response.status === 400 && errorData && errorData.detail) {
+          if (String(errorData.detail).toLowerCase().includes('codigo')) {
+            const friendly = 'papeletas ya registrada';
+            return { exito: false, mensaje: friendly, fieldError: { field: 'codigo', message: friendly } };
+          }
+          return { exito: false, mensaje: errorData.detail };
+        }
+
         throw new Error(errorData.message || `Error HTTP: ${response.status}`);
       }
 
@@ -227,18 +259,47 @@ class PapeletaService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
-        
+
         if (response.status === 401) {
           sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
           sessionStorage.removeItem(STORAGE_KEYS.USER);
           throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
         }
-        
+
+        // 422 - validación (Pydantic)
         if (response.status === 422) {
+          const errorsArray = errorData.errors || errorData.details || null;
+          if (Array.isArray(errorsArray)) {
+            const codigoErr = errorsArray.find(er => er.field === 'codigo' || (er.loc && Array.isArray(er.loc) && er.loc.includes('codigo')) );
+            if (codigoErr) {
+              return { exito: false, mensaje: codigoErr.message || 'Código inválido', fieldError: { field: 'codigo', message: codigoErr.message || 'Código inválido' } };
+            }
+            const summary = errorsArray.map(e => e.message || JSON.stringify(e)).join('; ');
+            return { exito: false, mensaje: `Errores de validación: ${summary}` };
+          }
           const validationErrors = errorData.errors || errorData.details || errorData.message;
-          throw new Error(`Error de validación: ${JSON.stringify(validationErrors)}`);
+          return { exito: false, mensaje: `Error de validación: ${JSON.stringify(validationErrors)}` };
         }
-        
+
+        // 409 - conflicto (p. ej. código duplicado)
+        if (response.status === 409 && errorData) {
+          const errObj = errorData.error || errorData;
+          if (errObj && (errObj.field === 'codigo' || String(errObj.message || '').toLowerCase().includes('codigo') || String(errObj.code || '').toLowerCase().includes('duplicate'))) {
+            const friendly = 'papeleta ya registrada';
+            return { exito: false, mensaje: friendly, fieldError: { field: 'codigo', message: friendly } };
+          }
+          return { exito: false, mensaje: errObj.message || JSON.stringify(errObj) };
+        }
+
+        // 400 legacy
+        if (response.status === 400 && errorData && errorData.detail) {
+          if (String(errorData.detail).toLowerCase().includes('codigo')) {
+            const friendly = 'papeleta ya registrada';
+            return { exito: false, mensaje: friendly, fieldError: { field: 'codigo', message: friendly } };
+          }
+          return { exito: false, mensaje: errorData.detail };
+        }
+
         throw new Error(errorData.message || `Error HTTP: ${response.status}`);
       }
 

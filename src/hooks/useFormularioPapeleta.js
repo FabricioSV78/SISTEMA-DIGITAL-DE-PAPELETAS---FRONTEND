@@ -23,6 +23,7 @@ export const useFormularioPapeleta = (onSuccess, setMensajeGlobal) => {
   const [sinRetorno, setSinRetorno] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  // fieldErrors removed: conflicts are shown as top/global messages per UX decision
   const [buscandoEmpleado, setBuscandoEmpleado] = useState(false);
   const [empleadoEncontrado, setEmpleadoEncontrado] = useState(null);
   const [mensajeEmpleado, setMensajeEmpleado] = useState('');
@@ -32,6 +33,12 @@ export const useFormularioPapeleta = (onSuccess, setMensajeGlobal) => {
    */
   const handleFormChange = (e) => {
     const { name, value } = e.target;
+
+    // No per-field inline errors: clear global message when user edits
+    if (mensaje && mensaje.texto) {
+      setMensaje({ tipo: '', texto: '' });
+      if (setMensajeGlobal) setMensajeGlobal({ tipo: '', texto: '' });
+    }
 
     if (name === 'dni') {
       const dniLimpio = papeletaService.limpiarDNI(value);
@@ -168,6 +175,7 @@ export const useFormularioPapeleta = (onSuccess, setMensajeGlobal) => {
           onSuccess();
         }
       } else {
+        // Mostrar mensaje general en la parte superior; no mostramos errores inline por campo
         setMensaje({
           tipo: 'danger',
           texto: resultado.mensaje
@@ -210,6 +218,7 @@ export const useFormularioPapeleta = (onSuccess, setMensajeGlobal) => {
     });
     setSinRetorno(false);
     setMensaje({ tipo: '', texto: '' });
+    // no fieldErrors state
     setEmpleadoEncontrado(null);
     setMensajeEmpleado('');
     setBuscandoEmpleado(false);

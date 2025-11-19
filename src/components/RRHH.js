@@ -3,7 +3,8 @@ import { generarPdfReporte } from '../utils/reportGenerator';
 import Navbar from './Navbar';
 import papeletaService from '../services/papeletaService';
 import authService from '../services/authService';
-import { MOTIVOS_PAPELETA } from '../config/constants';
+import { MOTIVOS_PAPELETA, AREAS } from '../config/constants';
+import Autocomplete from './Common/Autocomplete';
 import { useFormularioPapeleta, useFiltrosPapeletas } from '../hooks';
 import PanelEstadisticas from './RRHH/Estadisticas/PanelEstadisticas';
 import FiltrosPapeletas from './RRHH/Filtros/FiltrosPapeletas';
@@ -132,6 +133,7 @@ const RRHH = () => {
     limpiarFormulario: handleLimpiarForm,
     
   } = useFormularioPapeleta(cargarPapeletas, setMensajeRegistro);
+  
 
   const {
     filtros,
@@ -266,12 +268,12 @@ const RRHH = () => {
           setMensajeRegistro({ tipo: '', texto: '' });
         }, 4000);
       } else {
-        // Lanzar error para que sea capturado por el modal
+        // Mostrar solo mensaje superior; no mostramos inline por campo
         setMensajeRegistro({
           tipo: 'danger',
           texto: resultado.mensaje || 'Error al actualizar la papeleta'
         });
-        throw new Error(resultado.mensaje || 'Error al actualizar la papeleta');
+        return;
       }
     } catch (error) {
       console.error('Error al actualizar papeleta:', error);
@@ -554,30 +556,15 @@ const RRHH = () => {
                         </span>
                       )}
                     </label>
-                    <select 
-                      className={`form-select ${empleadoEncontrado ? 'border-success' : ''}`}
+                    <Autocomplete
                       name="area"
                       value={papeletaForm.area}
                       onChange={handleFormChange}
+                      suggestions={AREAS}
+                      placeholder="Escriba para buscar área (ej. recursos)"
+                      className={empleadoEncontrado ? 'border-success' : ''}
                       required
-                    >
-                      <option value="">Seleccionar área</option>
-                      <option value="Alcaldía">Alcaldía</option>
-                      <option value="Gerencia Municipal">Gerencia Municipal</option>
-                      <option value="Secretaría General">Secretaría General</option>
-                      <option value="Asesoría Jurídica">Asesoría Jurídica</option>
-                      <option value="Oficina General de Administración y Finanzas">Oficina General de Administración y Finanzas</option>
-                      <option value="Oficina de Tesorería">Oficina de Tesorería</option>
-                      <option value="Oficina de Tecnologías de La Información">Oficina de Tecnologías de La Información</option>
-                      <option value="Oficina de Recursos Humanos">Oficina de Recursos Humanos</option>
-                      <option value="Oficina de Abastecimiento y Control Patrimonial">Oficina de Abastecimiento y Control Patrimonial</option>
-                      <option value="Oficina de Planeamiento y Presupuesto">Oficina de Planeamiento y Presupuesto</option>
-                      <option value="Gerencia de Administración Tributaria">Gerencia de Administración Tributaria</option>
-                      <option value="Gerencia Desarrollo Económico y Ambiental">Gerencia Desarrollo Económico y Ambiental</option>
-                      <option value="Gerencia de Infraestructura">Gerencia de Infraestructura</option>
-                      <option value="Gerencia de Desarrollo Territorial y Transporte">Gerencia de Desarrollo Territorial y Transporte</option>
-                      <option value="Gerencia de Desarrollo Social y Humano">Gerencia de Desarrollo Social y Humano</option>
-                    </select>
+                    />
                   </div>
 
                   <div className="col-12 col-md-4">

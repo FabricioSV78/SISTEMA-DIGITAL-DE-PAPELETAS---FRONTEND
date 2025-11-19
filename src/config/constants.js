@@ -19,6 +19,25 @@ export const MOTIVOS_PAPELETA = [
   'Asuntos particulares'
 ];
 
+// Lista de áreas (centralizada para reutilizar en formularios/autocomplete)
+export const AREAS = [
+  'Alcaldía',
+  'Gerencia Municipal',
+  'Secretaría General',
+  'Asesoría Jurídica',
+  'Oficina General de Administración y Finanzas',
+  'Oficina de Tesorería',
+  'Oficina de Tecnologías de La Información',
+  'Oficina de Recursos Humanos',
+  'Oficina de Abastecimiento y Control Patrimonial',
+  'Oficina de Planeamiento y Presupuesto',
+  'Gerencia de Administración Tributaria',
+  'Gerencia Desarrollo Económico y Ambiental',
+  'Gerencia de Infraestructura',
+  'Gerencia de Desarrollo Territorial y Transporte',
+  'Gerencia de Desarrollo Social y Humano'
+];
+
 // Regímenes laborales
 export const REGIMENES_LABORALES = [
   'Decreto Legislativo N° 276',

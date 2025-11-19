@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { MOTIVOS_PAPELETA } from '../../../config/constants';
+import { MOTIVOS_PAPELETA, AREAS } from '../../../config/constants';
+import Autocomplete from '../../Common/Autocomplete';
 import SelectorTiempo from '../SelectorTiempo/SelectorTiempo';
 
 /**
@@ -11,7 +12,8 @@ const ModalEditarPapeleta = ({
   papeleta,
   onCerrar,
   onGuardar,
-  cargando
+  cargando,
+  
 }) => {
   const [formData, setFormData] = useState({
     nombreCompleto: '',
@@ -186,24 +188,14 @@ const ModalEditarPapeleta = ({
                   <label className="form-label fw-semibold">
                     Área <span className="text-danger">*</span>
                   </label>
-                  <select
-                    className="form-select"
+                  <Autocomplete
                     name="area"
                     value={formData.area}
                     onChange={handleChange}
+                    suggestions={AREAS}
+                    placeholder="Escriba para buscar área (ej. recursos)"
                     required
-                  >
-                    <option value="">Seleccionar área</option>
-                    <option value="Recursos Humanos">Recursos Humanos</option>
-                    <option value="Logística">Logística</option>
-                    <option value="Contabilidad">Contabilidad</option>
-                    <option value="Desarrollo Urbano">Desarrollo Urbano</option>
-                    <option value="Gerencia Municipal">Gerencia Municipal</option>
-                    <option value="Secretaría General">Secretaría General</option>
-                    <option value="Trámite Documentario">Trámite Documentario</option>
-                    <option value="Planeamiento y Presupuesto">Planeamiento y Presupuesto</option>
-                    <option value="Servicios Públicos">Servicios Públicos</option>
-                  </select>
+                  />
                 </div>
                 <div className="col-md-4 mb-3">
                   <label className="form-label fw-semibold">Cargo</label>
@@ -410,6 +402,7 @@ ModalEditarPapeleta.propTypes = {
   onCerrar: PropTypes.func.isRequired,
   onGuardar: PropTypes.func.isRequired,
   cargando: PropTypes.bool
+  
 };
 
 export default ModalEditarPapeleta;
