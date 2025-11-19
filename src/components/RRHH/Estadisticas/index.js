@@ -1,0 +1,9 @@
+export { default as GraficoDiasLaborables } from './GraficoDiasLaborables';
+export { default as GraficoDuracion } from './GraficoDuracion';
+export { default as GraficoPorArea } from './GraficoPorArea';
+export { default as GraficoPorDia } from './GraficoPorDia';
+export { default as GraficoPorMotivo } from './GraficoPorMotivo';
+export { default as GraficoRetorno } from './GraficoRetorno';
+export { default as GraficoTopEmpleados } from './GraficoTopEmpleados';
+export { default as PanelEstadisticas } from './PanelEstadisticas';
+export { default as TarjetasEstadisticas } from './TarjetasEstadisticas';

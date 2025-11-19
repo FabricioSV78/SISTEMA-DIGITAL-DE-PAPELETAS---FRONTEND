@@ -1,6 +1,9 @@
-// Servicio de administración para manejar las llamadas a la API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sistema-digital-de-papeletas-backend-production.up.railway.app';
+import { API_ENDPOINTS, getFullUrl, getAuthHeaders } from '../config/api';
+import { STORAGE_KEYS, MENSAJES_ERROR, VALIDACIONES } from '../config/constants';
 
+/**
+ * Servicio de administración para manejar las llamadas a la API
+ */
 class AdminService {
   /**
    * Crear nuevo usuario
@@ -13,19 +16,15 @@ class AdminService {
    */
   async crearUsuario(userData) {
     try {
-      // Obtener token de autenticación
-      const token = sessionStorage.getItem('userToken');
+      const token = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
       
       if (!token) {
-        throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+        throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/crear-usuarios`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.ADMIN.CREAR_USUARIO), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(token),
         body: JSON.stringify({
           nombre_completo: userData.nombre_completo,
           usuario: userData.usuario,
@@ -54,18 +53,15 @@ class AdminService {
    */
   async obtenerUsuarios() {
     try {
-      const token = sessionStorage.getItem('userToken');
+      const token = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
       
       if (!token) {
-        throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+        throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/usuarios`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.ADMIN.OBTENER_USUARIOS), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders(token)
       });
 
       if (!response.ok) {
@@ -90,37 +86,34 @@ class AdminService {
    */
   async actualizarUsuario(usuarioId, userData) {
     try {
-      const token = sessionStorage.getItem('userToken');
+      const token = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
       
       if (!token) {
-        throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+        throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
       }
 
       // Preparar datos para enviar (solo campos que no estén vacíos)
       const updateData = {};
       
-      if (userData.nombre_completo && userData.nombre_completo.trim()) {
+      if (userData.nombre_completo?.trim()) {
         updateData.nombre_completo = userData.nombre_completo.trim();
       }
       
-      if (userData.usuario && userData.usuario.trim()) {
+      if (userData.usuario?.trim()) {
         updateData.usuario = userData.usuario.trim();
       }
       
-      if (userData.dni && userData.dni.trim()) {
+      if (userData.dni?.trim()) {
         updateData.dni = userData.dni.trim();
       }
       
-      if (userData.rol && userData.rol.trim()) {
+      if (userData.rol?.trim()) {
         updateData.rol = userData.rol.toLowerCase();
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/modificar-usuarios/${usuarioId}`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.ADMIN.ACTUALIZAR_USUARIO(usuarioId)), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(token),
         body: JSON.stringify(updateData)
       });
 
@@ -151,18 +144,15 @@ class AdminService {
    */
   async eliminarUsuario(usuarioId) {
     try {
-      const token = sessionStorage.getItem('userToken');
+      const token = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
       
       if (!token) {
-        throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+        throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/eliminar-usuarios/${usuarioId}`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.ADMIN.ELIMINAR_USUARIO(usuarioId)), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders(token)
       });
 
       const data = await response.json();
@@ -193,19 +183,19 @@ class AdminService {
   validarDatosUsuario(userData) {
     const errors = [];
 
-    if (!userData.nombre_completo || userData.nombre_completo.trim().length < 3) {
-      errors.push('El nombre completo debe tener al menos 3 caracteres');
+    if (!userData.nombre_completo || userData.nombre_completo.trim().length < VALIDACIONES.NOMBRE_LENGTH_MIN) {
+      errors.push(`El nombre completo debe tener al menos ${VALIDACIONES.NOMBRE_LENGTH_MIN} caracteres`);
     }
 
-    if (!userData.usuario || userData.usuario.trim().length < 3) {
-      errors.push('El usuario debe tener al menos 3 caracteres');
+    if (!userData.usuario || userData.usuario.trim().length < VALIDACIONES.USUARIO_LENGTH_MIN) {
+      errors.push(`El usuario debe tener al menos ${VALIDACIONES.USUARIO_LENGTH_MIN} caracteres`);
     }
 
     if (!userData.dni || !/^\d{8}$/.test(userData.dni)) {
-      errors.push('El DNI debe tener exactamente 8 dígitos numéricos');
+      errors.push(MENSAJES_ERROR.DNI_INVALIDO);
     }
 
-    if (!userData.rol || !['administrador', 'rrhh'].includes(userData.rol)) {
+    if (!userData.rol || !['administrador', 'rrhh', 'rrhh-vista'].includes(userData.rol)) {
       errors.push('Debe seleccionar un rol válido');
     }
 
@@ -223,8 +213,8 @@ class AdminService {
   validarFormatoDNI(dni) {
     // Remover todo lo que no sea número
     const dniLimpio = dni.replace(/\D/g, '');
-    // Limitar a máximo 8 dígitos
-    return dniLimpio.substring(0, 8);
+    // Limitar a máximo según constante
+    return dniLimpio.substring(0, VALIDACIONES.DNI_LENGTH);
   }
 
   /**
@@ -235,7 +225,8 @@ class AdminService {
   mapRoleToDisplay(rol) {
     const roleNames = {
       'administrador': 'Administrador TI',
-      'rrhh': 'RRHH'
+      'rrhh': 'RRHH',
+      'rrhh-vista': 'RRHH Vista'
     };
     return roleNames[rol] || rol;
   }

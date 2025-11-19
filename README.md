@@ -1,4 +1,32 @@
-# Getting Started with Create React App
+# Sistema Digital de Papeletas - SDPS
+
+Sistema de gestión de papeletas de salida para la Municipalidad Provincial de San Miguel.
+
+## 📋 Descripción
+
+Aplicación web desarrollada con React para gestionar las papeletas de salida del personal municipal, con módulos diferenciados para RRHH y Administradores.
+
+## ✨ Mejoras Recientes (Refactorización)
+
+### Arquitectura Modular
+- **Configuración Centralizada**: Todos los constants y endpoints API en `src/config/`
+- **Custom Hooks**: Lógica reutilizable en `src/hooks/`
+- **Servicios Organizados**: Capa de servicios separada en `src/services/`
+- **Componentes Modulares**: Componentes RRHH divididos en subcarpetas especializadas
+
+### Estructura del Componente RRHH
+Reducido de **1606 líneas** a **1069 líneas** (~33% de reducción) mediante:
+- `FiltrosPapeletas`: Manejo de filtros (DNI, fecha, motivo)
+- `TarjetasEstadisticas`: Cards de estadísticas en tiempo real
+- `TablaPapeletas`: Listado de papeletas con estado de carga
+- `Paginacion`: Control de navegación entre páginas
+- `ModalDetallePapeleta`: Visualización detallada de papeletas
+
+### Validación de Tipos
+- PropTypes implementado en todos los componentes nuevos
+- Validación de props con valores por defecto
+
+## 🏗️ Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

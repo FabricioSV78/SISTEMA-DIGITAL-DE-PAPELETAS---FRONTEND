@@ -1,6 +1,9 @@
-// Servicio de autenticación para manejar las llamadas a la API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://sistema-digital-de-papeletas-backend-production.up.railway.app';
+import { API_ENDPOINTS, getFullUrl } from '../config/api';
+import { STORAGE_KEYS, MENSAJES_ERROR, ROLES } from '../config/constants';
 
+/**
+ * Servicio de autenticación para manejar las llamadas a la API
+ */
 class AuthService {
   /**
    * Realizar login con el backend
@@ -10,31 +13,26 @@ class AuthService {
    */
   async login(usuario, dni) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.AUTH.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          usuario,
-          dni
-        })
+        body: JSON.stringify({ usuario, dni })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Error en el servidor');
+        throw new Error(data.message || MENSAJES_ERROR.ERROR_SERVIDOR);
       }
 
-      // Si el login es exitoso, guardar token y datos del usuario
       if (data.success) {
         this.saveUserSession(data);
         return data;
       } else {
-        throw new Error(data.message || 'Credenciales incorrectas');
+        throw new Error(data.message || MENSAJES_ERROR.CREDENCIALES_INCORRECTAS);
       }
-
     } catch (error) {
       console.error('Error en login:', error);
       throw error;
@@ -48,13 +46,13 @@ class AuthService {
   saveUserSession(loginResponse) {
     const { user_data, token } = loginResponse;
     
-    // Guardar en sessionStorage
-    sessionStorage.setItem('userToken', token);
-    sessionStorage.setItem('currentUser', JSON.stringify(user_data));
-    sessionStorage.setItem('userRole', user_data.rol);
+    // Guardar en sessionStorage usando constantes
+    sessionStorage.setItem(STORAGE_KEYS.TOKEN, token);
+    sessionStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user_data));
+    sessionStorage.setItem(STORAGE_KEYS.ROLE, user_data.rol);
     
     // Opcional: También en localStorage para persistencia
-    localStorage.setItem('currentUser', JSON.stringify(user_data));
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user_data));
   }
 
   /**
@@ -63,7 +61,7 @@ class AuthService {
    */
   getCurrentUser() {
     try {
-      const userData = sessionStorage.getItem('currentUser');
+      const userData = sessionStorage.getItem(STORAGE_KEYS.USER);
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
       console.error('Error al obtener usuario actual:', error);
@@ -76,7 +74,7 @@ class AuthService {
    * @returns {string|null} - Token o null
    */
   getToken() {
-    return sessionStorage.getItem('userToken');
+    return sessionStorage.getItem(STORAGE_KEYS.TOKEN);
   }
 
   /**
@@ -93,15 +91,14 @@ class AuthService {
    * Cerrar sesión del usuario
    */
   logout() {
-    // Limpiar sessionStorage
-    sessionStorage.removeItem('userToken');
-    sessionStorage.removeItem('currentUser');
-    sessionStorage.removeItem('userRole');
+    // Limpiar sessionStorage usando constantes
+    sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+    sessionStorage.removeItem(STORAGE_KEYS.USER);
+    sessionStorage.removeItem(STORAGE_KEYS.ROLE);
     
     // Limpiar localStorage
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem(STORAGE_KEYS.USER);
   }
-
 
   /**
    * Mapear rol del backend al formato del frontend
@@ -110,11 +107,35 @@ class AuthService {
    */
   mapRole(backendRole) {
     const roleMap = {
-      'administrador': 'Administrador',
-      'rrhh': 'RRHH',
+      [ROLES.ADMINISTRADOR]: 'Administrador',
+      [ROLES.RRHH]: 'RRHH',
+      [ROLES.RRHH_VISTA]: 'RRHH',
     };
     
     return roleMap[backendRole.toLowerCase()] || backendRole;
+  }
+
+  /**
+   * Verificar si el usuario tiene permisos para registrar papeletas
+   * @returns {boolean} - True si puede registrar
+   */
+  canRegisterPapeletas() {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    
+    // Solo el rol RRHH (completo) puede registrar
+    return user.rol.toLowerCase() === ROLES.RRHH;
+  }
+
+  /**
+   * Verificar si el usuario es de solo lectura
+   * @returns {boolean} - True si es solo lectura
+   */
+  isReadOnlyUser() {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    
+    return user.rol.toLowerCase() === ROLES.RRHH_VISTA;
   }
 }
 

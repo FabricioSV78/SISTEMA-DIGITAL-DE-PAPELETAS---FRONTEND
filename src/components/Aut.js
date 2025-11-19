@@ -27,15 +27,12 @@ const Aut = () => {
   const redirectToUserModule = useCallback((role) => {
     switch (role.toLowerCase()) {
       case 'rrhh':
+      case 'rrhh-vista': // Usuario de solo consulta
         navigate('/rrhh');
         break;
       case 'administrador':
-      case 'admin':
+      case 'admin': // Alias para compatibilidad con backend
         navigate('/admin');
-        break;
-      case 'solicitante':
-      case 'empleado':
-        navigate('/registro');
         break;
       default:
         console.error('Rol no reconocido:', role);
@@ -186,6 +183,72 @@ const Aut = () => {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 576px) {
+          .auth-container {
+            padding: 1.5rem;
+            margin: 1rem;
+            max-width: calc(100% - 2rem);
+          }
+          
+          .auth-header h4 {
+            font-size: 1.25rem;
+          }
+          
+          .auth-header p {
+            font-size: 0.75rem;
+          }
+          
+          .auth-header img {
+            width: 50px;
+          }
+          
+          .form-control, .form-select {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.9rem;
+          }
+          
+          .btn-primary {
+            padding: 0.6rem;
+            font-size: 0.95rem;
+          }
+          
+          .auth-footer {
+            font-size: 0.75rem;
+            padding: 0 1rem;
+          }
+        }
+        
+        @media (min-width: 577px) and (max-width: 768px) {
+          .auth-container {
+            padding: 1.75rem;
+            margin: 1.5rem;
+          }
+          
+          .auth-header h4 {
+            font-size: 1.4rem;
+          }
+          
+          .auth-header img {
+            width: 55px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .auth-body {
+            padding: 0.5rem;
+          }
+          
+          .auth-container {
+            border-radius: 15px;
+            padding: 1.25rem;
+          }
+          
+          .form-label {
+            font-size: 0.9rem;
+          }
         }
       `}</style>
 

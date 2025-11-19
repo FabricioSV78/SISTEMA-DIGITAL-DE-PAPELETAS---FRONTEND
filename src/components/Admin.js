@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import adminService from '../services/adminService';
+import TablaUsuarios from './Admin/Tabla/TablaUsuarios';
+import TarjetasEstadisticasAdmin from './Admin/Estadisticas/TarjetasEstadisticasAdmin';
 
 const Admin = () => {
   // Estados para manejar los datos del formulario
@@ -412,6 +414,64 @@ const Admin = () => {
             margin-bottom: 2rem;
           }
         }
+        
+        /* Inputs más accesibles en móvil */
+        @media (max-width: 576px) {
+          .form-control, .form-select {
+            font-size: 16px !important; /* Previene zoom en iOS */
+            padding: 0.625rem 0.75rem;
+          }
+          
+          .form-label {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+          }
+          
+          .btn {
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+          }
+          
+          /* Mejorar espaciado vertical en formularios */
+          .row.g-3 {
+            row-gap: 1rem !important;
+          }
+        }
+        
+        /* Mejorar botones en formularios móviles */
+        @media (max-width: 768px) {
+          .btn-primary, .btn-secondary {
+            min-height: 44px; /* Touch target size recomendado */
+          }
+          
+          .col-12 .btn {
+            width: 100%;
+          }
+        }
+        
+        /* Scroll horizontal suave para tablas en móvil */
+        @media (max-width: 992px) {
+          .table-responsive {
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.375rem;
+          }
+          
+          .table-responsive table {
+            min-width: 650px;
+          }
+          
+          /* Indicador visual de scroll horizontal */
+          .table-responsive::after {
+            content: '← Desliza →';
+            display: block;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6c757d;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 0 0 0.375rem 0.375rem;
+          }
+        }
       `}</style>
 
       <div className="bg-light min-vh-100">
@@ -424,33 +484,10 @@ const Admin = () => {
           </h3>
 
           {/* Panel de Monitoreo */}
-          <div className="row g-3 mb-2">
-            <div className="col-6 col-md-3">
-              <div className="card text-center shadow-sm border-0 bg-primary text-white">
-                <div className="card-body py-2 py-md-3">
-                  <h6 className="fw-semibold small">Total de Usuarios</h6>
-                  <h3 className="fw-bold mb-0">
-                    {loadingUsuarios ? (
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                    ) : (
-                      usuarios.length
-                    )}
-                  </h3>
-                </div>
-              </div>
-            </div>
-         
-            <div className="col-6 col-md-3">
-              <div className="card text-center shadow-sm border-0 bg-info text-dark">
-                <div className="card-body py-2 py-md-3">
-                  <h6 className="fw-semibold small">Último respaldo</h6>
-                  <p className="fw-bold mb-0 small">30/10/2025 - 08:30 a.m.</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TarjetasEstadisticasAdmin 
+            totalUsuarios={usuarios.length}
+            cargando={loadingUsuarios}
+          />
 
           {/* Gestión de Usuarios */}
           <div className="card shadow-sm mb-4">
@@ -521,6 +558,7 @@ const Admin = () => {
                   >
                     <option value="">Seleccionar rol</option>
                     <option value="rrhh">RRHH</option>
+                    <option value="rrhh-vista">RRHH Vista (Solo lectura)</option>
                     <option value="administrador">Administrador TI</option>
                   </select>
                 </div>
@@ -564,108 +602,15 @@ const Admin = () => {
 
               <hr />
 
-              {/* Header de la tabla con botón de refrescar */}
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="mb-0 fw-semibold">Lista de Usuarios</h6>
-                <button 
-                  className="btn btn-sm btn-outline-primary"
-                  onClick={cargarUsuarios}
-                  disabled={loadingUsuarios}
-                >
-                  {loadingUsuarios ? (
-                    <div className="d-flex align-items-center">
-                      <div className="spinner-border spinner-border-sm me-1" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                      <span className="d-none d-sm-inline">Cargando...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <i className="bi bi-arrow-clockwise me-1"></i>
-                      <span className="d-none d-sm-inline">Refrescar</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
               {/* Tabla de usuarios */}
-              <div className="table-responsive mt-3">
-                <table className="table table-hover align-middle text-center">
-                  <thead className="table-dark">
-                    <tr>
-                      <th style={{minWidth: '60px'}}>ID</th>
-                      <th style={{minWidth: '120px'}}>Usuario</th>
-                      <th style={{minWidth: '120px'}}>DNI</th>
-                      <th style={{minWidth: '140px'}}>Rol</th>
-                      <th style={{minWidth: '160px'}}>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingUsuarios ? (
-                      <tr>
-                        <td colSpan="5" className="py-4">
-                          <div className="d-flex justify-content-center align-items-center">
-                            <div className="spinner-border spinner-border-sm me-2" role="status">
-                              <span className="visually-hidden">Cargando...</span>
-                            </div>
-                            Cargando usuarios...
-                          </div>
-                        </td>
-                      </tr>
-                    ) : errorUsuarios ? (
-                      <tr>
-                        <td colSpan="5" className="py-4 text-danger">
-                          <div className="d-flex justify-content-center align-items-center flex-column">
-                            <i className="bi bi-exclamation-triangle mb-2" style={{fontSize: '1.5rem'}}></i>
-                            {errorUsuarios}
-                            <button 
-                              className="btn btn-sm btn-outline-primary mt-2"
-                              onClick={cargarUsuarios}
-                            >
-                              Reintentar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : usuarios.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="py-4 text-muted">
-                          No hay usuarios registrados
-                        </td>
-                      </tr>
-                    ) : (
-                      usuarios.map(usuario => (
-                        <tr key={usuario.id}>
-                          <td>{usuario.id}</td>
-                          <td>{usuario.usuario}</td>
-                          <td>{usuario.dni}</td>
-                          <td>{adminService.mapRoleToDisplay(usuario.rol)}</td>
-                          <td>
-                            <div className="d-flex flex-column flex-lg-row gap-1 justify-content-center align-items-center">
-                              <button 
-                                className="btn btn-sm btn-outline-primary px-3"
-                                onClick={() => handleEdit(usuario)}
-                                disabled={isLoading}
-                              >
-                                <i className="bi bi-pencil-square me-1"></i>
-                                Editar
-                              </button>
-                              <button 
-                                className="btn btn-sm btn-outline-danger px-3"
-                                onClick={() => handleDelete(usuario)}
-                                disabled={isLoading}
-                              >
-                                <i className="bi bi-trash me-1"></i>
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <TablaUsuarios 
+                usuarios={usuarios}
+                cargando={loadingUsuarios}
+                error={errorUsuarios}
+                onEditar={handleEdit}
+                onEliminar={handleDelete}
+                onRecargar={cargarUsuarios}
+              />
             </div>
           </div>
 
@@ -719,7 +664,7 @@ const Admin = () => {
         {/* Modal de Edición de Usuario */}
         {mostrarModalEdicion && (
           <div className="modal show d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-            <div className="modal-dialog modal-lg">
+            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
               <div className="modal-content">
                 <div className="modal-header bg-primary text-white">
                   <h5 className="modal-title">
@@ -797,6 +742,7 @@ const Admin = () => {
                         >
                           <option value="">Seleccionar rol</option>
                           <option value="rrhh">RRHH</option>
+                          <option value="rrhh-vista">RRHH Vista (Solo lectura)</option>
                           <option value="administrador">Administrador TI</option>
                         </select>
                       </div>
@@ -854,10 +800,10 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Modal de confirmación de eliminación */}
+        {/* Modal de Confirmación de Eliminación */}
         {mostrarModalEliminacion && (
           <div className="modal show d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
                 <div className="modal-header bg-danger text-white">
                   <h5 className="modal-title">

@@ -1,9 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { generarPdfReporte } from '../utils/reportGenerator';
 import Navbar from './Navbar';
 import papeletaService from '../services/papeletaService';
+import authService from '../services/authService';
+import { MOTIVOS_PAPELETA } from '../config/constants';
+import { useFormularioPapeleta, useFiltrosPapeletas } from '../hooks';
 import PanelEstadisticas from './RRHH/Estadisticas/PanelEstadisticas';
+import FiltrosPapeletas from './RRHH/Filtros/FiltrosPapeletas';
+import TarjetasEstadisticas from './RRHH/Estadisticas/TarjetasEstadisticas';
+import TablaPapeletas from './RRHH/Tabla/TablaPapeletas';
+import Paginacion from './RRHH/Paginacion/Paginacion';
+import { ModalDetallePapeleta, ModalEditarPapeleta } from './RRHH/Modal';
+import SelectorTiempo from './RRHH/SelectorTiempo';
 
 const RRHH = () => {
+  // Verificar permisos del usuario
+  const canRegister = authService.canRegisterPapeletas();
+  const isReadOnly = authService.isReadOnlyUser();
+
+  // Estado para las papeletas
+  const [papeletas, setPapeletas] = useState([]);
+  const [cargandoPapeletas, setCargandoPapeletas] = useState(true);
+  const [errorPapeletas, setErrorPapeletas] = useState('');
+
   // Estados para las estadísticas
   const [estadisticas, setEstadisticas] = useState({
     totalPapeletas: 120,
@@ -12,60 +31,8 @@ const RRHH = () => {
     papeletasSinRetorno: 0
   });
 
-  // Estados para los filtros de búsqueda
-  const [filtros, setFiltros] = useState({
-    dni: '',
-    fecha: '',
-    motivo: ''
-  });
-
-  // Manejar checkbox "Sin retorno" - Versión React del script original
-  const handleSinRetornoChange = (e) => {
-    const checked = e.target.checked;
-    setSinRetorno(checked);
-    
-    // Si está marcado "Sin retorno", limpiar la hora de retorno
-    if (checked) {
-      setPapeletaForm(prev => ({
-        ...prev,
-        horaRetorno: ''
-      }));
-    }
-  };
-
-
-  // Estados para el formulario de nueva papeleta
-  const [papeletaForm, setPapeletaForm] = useState({
-    nombreCompleto: '',
-    dni: '',
-    codigo: '',
-    area: '',
-    cargo: '',
-    regimenLaboral: '',
-    oficinaVisitar: '',
-    motivo: '',
-    fundamentacion: '',
-    fecha: '',
-    horaSalida: '',
-    horaRetorno: ''
-  });
-
-  // Estados para los checkboxes "Sin retorno"
-  const [sinRetorno, setSinRetorno] = useState(false);
-
-  // Estados para la gestión de carga y mensajes
-  const [cargando, setCargando] = useState(false);
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
-
-  // Estado para las papeletas
-  const [papeletas, setPapeletas] = useState([]);
-  const [cargandoPapeletas, setCargandoPapeletas] = useState(true);
-  const [errorPapeletas, setErrorPapeletas] = useState('');
-
-
-
-  // Estado para papeletas filtradas
-  const [papeletasFiltradas, setPapeletasFiltradas] = useState(papeletas);
+  // Estado para mostrar el panel de estadísticas
+  const [mostrarPanelEstadisticas, setMostrarPanelEstadisticas] = useState(false);
 
   // Estados para el modal de detalles de papeleta
   const [mostrarModalDetalle, setMostrarModalDetalle] = useState(false);
@@ -73,22 +40,17 @@ const RRHH = () => {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [errorDetalle, setErrorDetalle] = useState('');
 
-  // Estados para la paginación
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [elementosPorPagina] = useState(10); // Número de papeletas por página
-  const [totalPaginas, setTotalPaginas] = useState(1);
-
-  // Estados para la búsqueda de empleado por DNI
-  const [buscandoEmpleado, setBuscandoEmpleado] = useState(false);
-  const [empleadoEncontrado, setEmpleadoEncontrado] = useState(null);
-  const [mensajeEmpleado, setMensajeEmpleado] = useState('');
+  // Estados para el modal de edición de papeleta
+  const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [papeletaEditar, setPapeletaEditar] = useState(null);
+  const [cargandoEdicion, setCargandoEdicion] = useState(false);
 
   // Estados para selectores de tiempo personalizados
   const [mostrarSelectorSalida, setMostrarSelectorSalida] = useState(false);
   const [mostrarSelectorRetorno, setMostrarSelectorRetorno] = useState(false);
 
-  // Estados para el panel de estadísticas
-  const [mostrarPanelEstadisticas, setMostrarPanelEstadisticas] = useState(false);
+  // Constante para elementos por página
+  const elementosPorPagina = 10;
 
   // Función para calcular estadísticas dinámicas
   const calcularEstadisticas = (papeletas) => {
@@ -125,6 +87,16 @@ const RRHH = () => {
     };
   };
 
+  // Función para mostrar el panel de estadísticas
+  const mostrarEstadisticasDetalladas = () => {
+    setMostrarPanelEstadisticas(true);
+  };
+
+  // Función para cerrar el panel de estadísticas
+  const cerrarPanelEstadisticas = () => {
+    setMostrarPanelEstadisticas(false);
+  };
+
   // Función para cargar papeletas desde la API
   const cargarPapeletas = useCallback(async () => {
     setCargandoPapeletas(true);
@@ -144,16 +116,36 @@ const RRHH = () => {
     }
   }, []);
 
-  // Funciones de paginación
-  const calcularPaginacion = useCallback((datos) => {
-    const total = Math.ceil(datos.length / elementosPorPagina);
-    setTotalPaginas(total);
-    
-    // Si la página actual es mayor que el total, resetear a la primera página
-    if (paginaActual > total && total > 0) {
-      setPaginaActual(1);
-    }
-  }, [elementosPorPagina, paginaActual]);
+  // Custom hooks para manejar formulario y filtros
+  const [mensajeRegistro, setMensajeRegistro] = useState({ tipo: '', texto: '' });
+  const {
+    papeletaForm,
+    sinRetorno,
+    cargando,
+    mensaje,
+    buscandoEmpleado,
+    empleadoEncontrado,
+    mensajeEmpleado,
+    handleFormChange,
+    handleSinRetornoChange,
+    seleccionarHora,
+    handleSubmit: handleSubmitPapeleta,
+    limpiarFormulario: handleLimpiarForm,
+    setMensaje
+  } = useFormularioPapeleta(cargarPapeletas, setMensajeRegistro);
+
+  const {
+    filtros,
+    papeletasFiltradas,
+    paginaActual,
+    totalPaginas,
+    handleFiltroChange,
+    limpiarFiltros: handleLimpiarFiltros,
+    obtenerDatosPaginaActual,
+    irAPagina,
+    paginaAnterior,
+    paginaSiguiente
+  } = useFiltrosPapeletas(papeletas, 10);
 
   // Cargar papeletas al montar el componente
   useEffect(() => {
@@ -175,86 +167,7 @@ const RRHH = () => {
     }
   }, [mostrarSelectorSalida, mostrarSelectorRetorno]);
 
-  // Actualizar papeletas filtradas cuando cambien los filtros o papeletas
-  useEffect(() => {
-    let resultado = papeletas;
 
-    // Filtrar por DNI
-    if (filtros.dni) {
-      resultado = resultado.filter(p => 
-        p.dni.includes(filtros.dni)
-      );
-    }
-
-    // Filtrar por fecha
-    if (filtros.fecha) {
-      resultado = resultado.filter(p => 
-        p.fecha === filtros.fecha
-      );
-    }
-
-    // Filtrar por motivo
-    if (filtros.motivo) {
-      resultado = resultado.filter(p => 
-        p.motivo === filtros.motivo
-      );
-    }
-
-    setPapeletasFiltradas(resultado);
-    
-    // Calcular paginación con los datos filtrados
-    calcularPaginacion(resultado);
-  }, [filtros, papeletas, elementosPorPagina, calcularPaginacion]);
-
-  // Resetear a la primera página cuando cambien los filtros
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [filtros]);
-
-  // Manejar cambios en los filtros
-  const handleFiltroChange = (e) => {
-    const { name, value } = e.target;
-    setFiltros(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Manejar cambios en el formulario de papeleta
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    
-    // Si es el campo DNI, limpiar y validar
-    if (name === 'dni') {
-      const dniLimpio = papeletaService.limpiarDNI(value);
-      // Limitar a 8 dígitos
-      const dniFinal = dniLimpio.substring(0, 8);
-      
-      setPapeletaForm(prev => ({
-        ...prev,
-        [name]: dniFinal
-      }));
-
-      // Buscar empleado automáticamente cuando el DNI tenga 8 dígitos
-      if (dniFinal.length === 8) {
-        buscarEmpleadoPorDNI(dniFinal);
-      } else {
-        // Limpiar datos de empleado si el DNI no es válido
-        setEmpleadoEncontrado(null);
-        setMensajeEmpleado('');
-      }
-    } else {
-      // Si se modifica cualquier otro campo y había un empleado encontrado, marcarlo como modificado
-      if (empleadoEncontrado && (name === 'nombreCompleto' || name === 'area' || name === 'cargo' || name === 'regimenLaboral')) {
-        limpiarDatosEmpleado();
-      }
-      
-      setPapeletaForm(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
-  };
 
   // Manejar teclas presionadas en el DNI (prevenir caracteres no numéricos)
   const handleDniKeyPress = (e) => {
@@ -278,14 +191,14 @@ const RRHH = () => {
     cargarPapeletas();
   };
 
-  // Limpiar filtros
-  const handleLimpiarFiltros = () => {
-    setFiltros({
-      dni: '',
-      fecha: '',
-      motivo: '',
-      estado: ''
-    });
+  // Generar y descargar reporte PDF usando el módulo reutilizable
+  const handleImprimir = async () => {
+    try {
+      await generarPdfReporte(papeletasFiltradas, filtros, { filename: `reporte-papeletas-${new Date().toISOString().slice(0,10)}.pdf` });
+    } catch (err) {
+      console.error('Error al generar el reporte imprimible:', err);
+      alert('No se pudo generar el reporte imprimible. Ver consola para detalles.');
+    }
   };
 
   // Ver papeleta - Cargar detalles desde el backend
@@ -317,297 +230,68 @@ const RRHH = () => {
     setErrorDetalle('');
   };
 
-  const obtenerDatosPaginaActual = (datos) => {
-    const inicio = (paginaActual - 1) * elementosPorPagina;
-    const fin = inicio + elementosPorPagina;
-    return datos.slice(inicio, fin);
+  // Abrir modal de edición desde el modal de detalles
+  const handleAbrirEdicion = (papeleta) => {
+    setPapeletaEditar(papeleta);
+    setMostrarModalEditar(true);
+    setMostrarModalDetalle(false);
   };
 
-  const irAPagina = (numeroPagina) => {
-    if (numeroPagina >= 1 && numeroPagina <= totalPaginas) {
-      setPaginaActual(numeroPagina);
-    }
+  // Cerrar modal de edición
+  const handleCerrarModalEditar = () => {
+    setMostrarModalEditar(false);
+    setPapeletaEditar(null);
+    setCargandoEdicion(false);
   };
 
-  const paginaAnterior = () => {
-    if (paginaActual > 1) {
-      setPaginaActual(paginaActual - 1);
-    }
-  };
-
-  const paginaSiguiente = () => {
-    if (paginaActual < totalPaginas) {
-      setPaginaActual(paginaActual + 1);
-    }
-  };
-
-  // Buscar empleado por DNI y autocompletar datos
-  const buscarEmpleadoPorDNI = async (dni) => {
-    // Solo buscar si el DNI tiene exactamente 8 dígitos
-    if (dni.length !== 8) {
-      setEmpleadoEncontrado(null);
-      setMensajeEmpleado('');
-      return;
-    }
-
-    setBuscandoEmpleado(true);
-    setMensajeEmpleado('');
-    
-    try {
-      const resultado = await papeletaService.buscarEmpleadoPorDNI(dni);
-      
-      if (resultado.encontrado && resultado.datos) {
-        setEmpleadoEncontrado(resultado.datos);
-        setMensajeEmpleado('✓ Empleado encontrado');
-        
-        // Autocompletar los campos del formulario
-        setPapeletaForm(prev => ({
-          ...prev,
-          nombreCompleto: resultado.datos.nombreCompleto || '',
-          area: resultado.datos.area || '',
-          cargo: resultado.datos.cargo || '',
-          regimenLaboral: resultado.datos.regimenLaboral || ''
-        }));
-      } else {
-        setEmpleadoEncontrado(null);
-        setMensajeEmpleado(''); // No mostrar mensaje cuando no se encuentra
-        
-        // Limpiar solo los campos que se autocompletarían, mantener el DNI
-        setPapeletaForm(prev => ({
-          ...prev,
-          nombreCompleto: '',
-          area: '',
-          cargo: '',
-          regimenLaboral: ''
-        }));
-      }
-    } catch (error) {
-      console.error('Error al buscar empleado:', error);
-      setEmpleadoEncontrado(null);
-      setMensajeEmpleado('Error al buscar el empleado');
-    } finally {
-      setBuscandoEmpleado(false);
-    }
-  };
-
-  // Limpiar datos de empleado cuando se modifica manualmente
-  const limpiarDatosEmpleado = () => {
-    setEmpleadoEncontrado(null);
-    setMensajeEmpleado('');
-  };
-
-  // Funciones para los selectores de tiempo personalizados
-  const seleccionarHora = (tipo, hora, minutos) => {
-    const horaFormateada = `${String(hora).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
-    setPapeletaForm(prev => ({
-      ...prev,
-      [tipo]: horaFormateada
-    }));
-    
-    if (tipo === 'horaSalida') {
-      setMostrarSelectorSalida(false);
-    } else {
-      setMostrarSelectorRetorno(false);
-    }
-  };
-
-  const ComponenteSelectorTiempo = ({ tipo, mostrar, onCerrar, valorActual }) => {
-    if (!mostrar) return null;
-    
-    // No establecer hora actual por defecto, dejar vacío hasta que el usuario seleccione
-    const [horaActual, minutosActuales] = valorActual ? valorActual.split(':').map(Number) : [0, 0];
-    
-    const horas = Array.from({ length: 24 }, (_, i) => i);
-    const minutos = [0, 15, 30, 45];
-    
-    return (
-      <div className="position-absolute bg-white border rounded shadow-lg p-3 mt-1" style={{ zIndex: 1050, minWidth: '280px' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="mb-0 fw-semibold">
-            <i className="bi bi-clock me-2 text-primary"></i>
-            Seleccionar {tipo === 'horaSalida' ? 'hora de salida' : 'hora de retorno'}
-          </h6>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={onCerrar}
-            aria-label="Close"
-          ></button>
-        </div>
-        
-        {/* Hora actual y botones rápidos */}
-        <div className="mb-3">
-          <div className="d-flex gap-2 mb-2 flex-wrap">
-            <button
-              type="button"
-              className="btn btn-outline-success btn-sm"
-              onClick={() => {
-                const ahora = new Date();
-                seleccionarHora(tipo, ahora.getHours(), ahora.getMinutes());
-              }}
-            >
-              <i className="bi bi-clock-fill me-1"></i>
-              Ahora ({new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })})
-            </button>
-          </div>
-          
-          {/* Horarios preestablecidos */}
-          <div className="d-flex gap-1 flex-wrap">
-            {tipo === 'horaSalida' ? 
-              ['08:00', '08:30', '09:00', '14:00', '15:00'].map(hora => {
-                const [h, m] = hora.split(':').map(Number);
-                return (
-                  <button
-                    key={hora}
-                    type="button"
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => seleccionarHora(tipo, h, m)}
-                  >
-                    {hora}
-                  </button>
-                );
-              }) :
-              ['12:00', '13:00', '17:00', '17:30', '18:00'].map(hora => {
-                const [h, m] = hora.split(':').map(Number);
-                return (
-                  <button
-                    key={hora}
-                    type="button"
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => seleccionarHora(tipo, h, m)}
-                  >
-                    {hora}
-                  </button>
-                );
-              })
-            }
-          </div>
-        </div>
-        
-        {/* Selector manual */}
-        <div className="row g-2">
-          <div className="col-6">
-            <label className="form-label small fw-semibold">Hora</label>
-            <select 
-              className="form-select form-select-sm"
-              value={horaActual || 0}
-              onChange={(e) => seleccionarHora(tipo, parseInt(e.target.value), minutosActuales || 0)}
-            >
-              {horas.map(h => (
-                <option key={h} value={h}>
-                  {String(h).padStart(2, '0')}:00
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-6">
-            <label className="form-label small fw-semibold">Minutos</label>
-            <select 
-              className="form-select form-select-sm"
-              value={minutosActuales || 0}
-              onChange={(e) => seleccionarHora(tipo, horaActual || 0, parseInt(e.target.value))}
-            >
-              {minutos.map(m => (
-                <option key={m} value={m}>
-                  :{String(m).padStart(2, '0')}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-       
-      </div>
-    );
-  };
-
-  // Registrar nueva papeleta
-  const handleSubmitPapeleta = async (e) => {
-    e.preventDefault();
-    
-    // Limpiar mensajes anteriores
-    setMensaje({ tipo: '', texto: '' });
-    
-    // Iniciar carga
-    setCargando(true);
+  // Guardar cambios de la papeleta editada
+  const handleGuardarEdicion = async (papeletaId, datosActualizados) => {
+    setCargandoEdicion(true);
 
     try {
-      // Enviar datos al backend
-      const resultado = await papeletaService.crearPapeleta(papeletaForm);
-      
+      const resultado = await papeletaService.actualizarPapeleta(papeletaId, datosActualizados);
+
       if (resultado.exito) {
-        // Mostrar mensaje de éxito
-        setMensaje({
-          tipo: 'success',
-          texto: resultado.mensaje
-        });
+        // Cerrar modal de edición
+        handleCerrarModalEditar();
 
-        // Limpiar formulario completamente
-        setPapeletaForm({
-          nombreCompleto: '',
-          dni: '',
-          codigo: '',
-          area: '',
-          cargo: '',
-          regimenLaboral: '',
-          oficinaVisitar: '',
-          motivo: '',
-          fundamentacion: '',
-          fecha: '',
-          horaSalida: '',
-          horaRetorno: ''
-        });
-
-        // Limpiar todos los estados relacionados con el formulario
-        setSinRetorno(false);
-        setEmpleadoEncontrado(null);
-        setMensajeEmpleado('');
-        setBuscandoEmpleado(false);
-
-        // Recargar la lista de papeletas desde el servidor
+        // Recargar papeletas
         await cargarPapeletas();
 
-      } else {
-        // Mostrar mensaje de error
-        setMensaje({
-          tipo: 'danger',
-          texto: resultado.mensaje
+        // Mostrar mensaje de éxito en el mensaje flotante superior
+        setMensajeRegistro({
+          tipo: 'success',
+          texto: resultado.mensaje || 'Papeleta actualizada correctamente'
         });
+        setTimeout(() => {
+          setMensajeRegistro({ tipo: '', texto: '' });
+        }, 4000);
+      } else {
+        // Lanzar error para que sea capturado por el modal
+        setMensajeRegistro({
+          tipo: 'danger',
+          texto: resultado.mensaje || 'Error al actualizar la papeleta'
+        });
+        throw new Error(resultado.mensaje || 'Error al actualizar la papeleta');
       }
     } catch (error) {
-      console.error('Error inesperado:', error);
-      setMensaje({
+      console.error('Error al actualizar papeleta:', error);
+      setMensajeRegistro({
         tipo: 'danger',
-        texto: 'Error inesperado al registrar la papeleta'
+        texto: error.message || 'Error al actualizar la papeleta'
       });
+      // Relanzar el error para que el modal lo capture
+      throw error;
     } finally {
-      setCargando(false);
+      setCargandoEdicion(false);
     }
   };
 
-  // Limpiar formulario
-  const handleLimpiarForm = () => {
-    setPapeletaForm({
-      nombreCompleto: '',
-      dni: '',
-      codigo: '',
-      area: '',
-      cargo: '',
-      regimenLaboral: '',
-      oficinaVisitar: '',
-      motivo: '',
-      fundamentacion: '',
-      fecha: '',
-      horaSalida: '',
-      horaRetorno: ''
-    });
-    setSinRetorno(false);
-    setMensaje({ tipo: '', texto: '' });
-    // Limpiar también los estados del empleado
-    setEmpleadoEncontrado(null);
-    setMensajeEmpleado('');
-    setBuscandoEmpleado(false);
-  };
+
+
+
+
+
 
   return (
     <>
@@ -682,101 +366,100 @@ const RRHH = () => {
         .card .bi {
           opacity: 0.9;
         }
+        
+        /* Inputs más accesibles en móvil */
+        @media (max-width: 576px) {
+          .form-control, .form-select {
+            font-size: 16px !important; /* Previene zoom en iOS */
+            padding: 0.625rem 0.75rem;
+          }
+          
+          .form-label {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+          }
+          
+          .btn {
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+          }
+          
+          /* Mejorar espaciado vertical en formularios */
+          .row.g-3 {
+            row-gap: 1rem !important;
+          }
+        }
+        
+        /* Mejorar botones en formularios móviles */
+        @media (max-width: 768px) {
+          .btn-primary, .btn-secondary {
+            min-height: 44px; /* Touch target size recomendado */
+          }
+          
+          .col-12 .btn {
+            width: 100%;
+          }
+        }
+        
+        /* Scroll horizontal suave para tablas en móvil */
+        @media (max-width: 992px) {
+          .table-responsive {
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.375rem;
+          }
+          
+          .table-responsive table {
+            min-width: 800px;
+          }
+          
+          /* Indicador visual de scroll horizontal */
+          .table-responsive::after {
+            content: '← Desliza →';
+            display: block;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6c757d;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 0 0 0.375rem 0.375rem;
+          }
+        }
       `}</style>
 
       <div className="bg-light min-vh-100">
         {/* Navbar reutilizable */}
         <Navbar userRole="Recursos Humanos" />
 
+        {/* Mensaje flotante de éxito/error - Visible siempre en la parte superior */}
+        {(mensajeRegistro && mensajeRegistro.texto) && (
+          <div 
+            className="position-fixed top-0 start-50 translate-middle-x mt-3" 
+            style={{ zIndex: 1060, width: '90%', maxWidth: '600px' }}
+          >
+            <div className={`alert alert-${mensajeRegistro.tipo} alert-dismissible fade show shadow-lg`} role="alert">
+              <i className={`bi ${mensajeRegistro.tipo === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+              <strong>{mensajeRegistro.tipo === 'success' ? '¡Éxito!' : 'Error:'}</strong> {mensajeRegistro.texto}
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={() => setMensajeRegistro({ tipo: '', texto: '' })}
+                aria-label="Close"
+              ></button>
+            </div>
+          </div>
+        )}
+
         <div className="container mt-4">
           <h3 className="text-primary fw-bold mb-3">Módulo de Registro y Control - RRHH</h3>
 
           {/* Estadísticas */}
-          <div className="row g-3 mb-4">
-            <div className="col-12 col-sm-6 col-lg-3">
-              <div className="card text-center shadow-sm border-0 bg-primary text-white h-100">
-                <div className="card-body d-flex flex-column justify-content-center py-3">
-                  <div className="mb-2">
-                    <i className="bi bi-clipboard-data fs-1"></i>
-                  </div>
-                  <h6 className="fw-semibold mb-2">Total de Papeletas</h6>
-                  <h2 className="fw-bold mb-0">
-                    {cargandoPapeletas ? (
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                    ) : (
-                      estadisticas.totalPapeletas
-                    )}
-                  </h2>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-12 col-sm-6 col-lg-3">
-              <div className="card text-center shadow-sm border-0 bg-success text-white h-100">
-                <div className="card-body d-flex flex-column justify-content-center py-3">
-                  <div className="mb-2">
-                    <i className="bi bi-calendar-check fs-1"></i>
-                  </div>
-                  <h6 className="fw-semibold mb-2">Papeletas de Hoy</h6>
-                  <h2 className="fw-bold mb-0">
-                    {cargandoPapeletas ? (
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                    ) : (
-                      estadisticas.papeletasHoy
-                    )}
-                  </h2>
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-12 col-sm-6 col-lg-3">
-              <div className="card text-center shadow-sm border-0 bg-warning text-dark h-100">
-                <div className="card-body d-flex flex-column justify-content-center py-3">
-                  <div className="mb-2">
-                    <i className="bi bi-clock-history fs-1"></i>
-                  </div>
-                  <h6 className="fw-semibold mb-2">Sin Retorno</h6>
-                  <h2 className="fw-bold mb-0">
-                    {cargandoPapeletas ? (
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                    ) : (
-                      estadisticas.papeletasSinRetorno
-                    )}
-                  </h2>
-                </div>
-              </div>
-            </div>
+          <TarjetasEstadisticas 
+            estadisticas={estadisticas}
+            cargando={cargandoPapeletas}
+          />
 
-            <div className="col-12 col-sm-6 col-lg-3">
-              <div className="card text-center shadow-sm border-0 bg-info text-white h-100">
-                <div className="card-body d-flex flex-column justify-content-center py-3">
-                  <div className="mb-2">
-                    <i className="bi bi-building fs-1"></i>
-                  </div>
-                  <h6 className="fw-semibold mb-2">Área Más Solicitada</h6>
-                  <h6 className="fw-bold mb-0" style={{fontSize: '1.1rem', lineHeight: '1.2'}}>
-                    {cargandoPapeletas ? (
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                    ) : (
-                      <span className="text-truncate d-block" title={estadisticas.areaMasSolicitada}>
-                        {estadisticas.areaMasSolicitada}
-                      </span>
-                    )}
-                  </h6>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Registro de nueva papeleta */}
+          {/* Registro de nueva papeleta - Solo para usuarios con permisos */}
+          {canRegister && (
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="fw-semibold mb-3">Registro de nueva papeleta</h5>
@@ -849,7 +532,7 @@ const RRHH = () => {
                   
 
                   <div className="col-6 col-md-3">
-                    <label className="form-label fw-semibold">Código</label>
+                    <label className="form-label fw-semibold">Código papeleta</label>
                     <input 
                       type="text" 
                       className="form-control"
@@ -956,10 +639,9 @@ const RRHH = () => {
                       onChange={handleFormChange}
                     >
                       <option value="">Seleccionar motivo</option>
-                      <option value="Comisión de servicios">Comisión de servicios</option>
-                      <option value="Atención médica">Atención médica</option>
-                      <option value="Capacitación">Capacitación</option>
-                      <option value="Asuntos particulares">Asuntos particulares</option>
+                      {MOTIVOS_PAPELETA.map(motivo => (
+                        <option key={motivo} value={motivo}>{motivo}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -1010,11 +692,12 @@ const RRHH = () => {
                       />
                       
                       {/* Selector personalizado */}
-                      <ComponenteSelectorTiempo
+                      <SelectorTiempo
                         tipo="horaSalida"
                         mostrar={mostrarSelectorSalida}
                         onCerrar={() => setMostrarSelectorSalida(false)}
                         valorActual={papeletaForm.horaSalida}
+                        onSeleccionar={seleccionarHora}
                       />
                     </div>
                   </div>
@@ -1055,11 +738,12 @@ const RRHH = () => {
                         
                         {/* Selector personalizado */}
                         {!sinRetorno && (
-                          <ComponenteSelectorTiempo
+                          <SelectorTiempo
                             tipo="horaRetorno"
                             mostrar={mostrarSelectorRetorno}
                             onCerrar={() => setMostrarSelectorRetorno(false)}
                             valorActual={papeletaForm.horaRetorno}
+                            onSeleccionar={seleccionarHora}
                           />
                         )}
                       </div>
@@ -1133,458 +817,87 @@ const RRHH = () => {
                     )}
                   </button>
                 </div>
-
-                {/* Mensaje de estado - Ahora aparece debajo del formulario */}
-                {mensaje.texto && (
-                  <div className={`alert alert-${mensaje.tipo} alert-dismissible fade show mt-3`} role="alert">
-                    <i className={`bi ${mensaje.tipo === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
-                    {mensaje.texto}
-                    <button 
-                      type="button" 
-                      className="btn-close" 
-                      onClick={() => setMensaje({ tipo: '', texto: '' })}
-                      aria-label="Close"
-                    ></button>
-                  </div>
-                )}
               </form>
             </div>
           </div>
+          )}
+
+          {/* Mostrar mensaje informativo para usuarios de solo lectura */}
+          {isReadOnly && (
+            <div className="alert alert-info mb-4" role="alert">
+              <i className="bi bi-info-circle-fill me-2"></i>
+              <strong>Modo de consulta:</strong> Puedes consultar papeletas y ver estadísticas.
+            </div>
+          )}
 
           {/* Filtros */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-semibold text-primary mb-0">Filtrar y Consultar Papeletas</h5>
-                <button 
-                  type="button"
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={() => setMostrarPanelEstadisticas(true)}
-                >
-                  <i className="bi bi-bar-chart-line me-2"></i>
-                  Ver Estadísticas
-                </button>
-              </div>
-              <form className="row g-3">
-                <div className="col-12 col-sm-6 col-md-3">
-                  <input 
-                    type="text" 
-                    className="form-control"
-                    name="dni"
-                    value={filtros.dni}
-                    onChange={handleFiltroChange}
-                    placeholder="Buscar por DNI"
-                  />
-                </div>
-                <div className="col-12 col-sm-6 col-md-3">
-                  <input 
-                    type="date" 
-                    className="form-control"
-                    name="fecha"
-                    value={filtros.fecha}
-                    onChange={handleFiltroChange}
-                  />
-                </div>
-                <div className="col-12 col-sm-6 col-md-3">
-                  <select 
-                    className="form-select"
-                    name="motivo"
-                    value={filtros.motivo}
-                    onChange={handleFiltroChange}
-                  >
-                    <option value="">Seleccionar motivo</option>
-                    <option value="Comisión de servicios">Comisión de servicios</option>
-                    <option value="Atención médica">Atención médica</option>
-                    <option value="Capacitación">Capacitación</option>
-                    <option value="Asuntos particulares">Asuntos particulares</option>
-                  </select>
-                </div>
-
-
-                <div className="col-6 col-md-3">
-                  <button 
-                    type="button" 
-                    className="btn btn-primary w-100"
-                    onClick={handleBuscar}
-                    disabled={cargandoPapeletas}
-                  >
-                    {cargandoPapeletas ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Actualizando...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-search me-2"></i>
-                        Buscar
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="col-6 col-md-3">
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-secondary w-100"
-                    onClick={handleLimpiarFiltros}
-                  >
-                    Limpiar filtros
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <FiltrosPapeletas 
+            filtros={filtros}
+            motivosUnicos={MOTIVOS_PAPELETA}
+            cargando={cargandoPapeletas}
+            onFiltroChange={handleFiltroChange}
+            onBuscar={handleBuscar}
+            onLimpiar={handleLimpiarFiltros}
+            onVerEstadisticas={mostrarEstadisticasDetalladas}
+            onImprimir={handleImprimir}
+          />
 
           {/* Tabla de registros */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-semibold text-primary mb-0">
-                  Listado de Papeletas
-                </h5>
-                <div className="text-muted small">
-                  {papeletasFiltradas.length > 0 && (
-                    <>
-                      Mostrando {Math.min((paginaActual - 1) * elementosPorPagina + 1, papeletasFiltradas.length)} - {Math.min(paginaActual * elementosPorPagina, papeletasFiltradas.length)} de {papeletasFiltradas.length} resultados
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="table-responsive">
-                <table className="table table-hover text-center align-middle">
-                  <thead className="table-primary">
-                    <tr>
-                      <th style={{minWidth: '120px'}}>Código</th>
-                      <th style={{minWidth: '120px'}}>Trabajador</th>
-                      <th style={{minWidth: '90px'}}>DNI</th>
-                      <th style={{minWidth: '100px'}}>Área</th>
-                      <th style={{minWidth: '100px'}}>Fecha</th>
-                      <th style={{minWidth: '130px'}}>Motivo</th>
-                      <th style={{minWidth: '130px'}}>Oficina</th>
-                      <th style={{minWidth: '100px'}}>Horario</th>
-                      <th style={{minWidth: '80px'}}>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cargandoPapeletas ? (
-                      <tr>
-                        <td colSpan="9" className="py-4">
-                          <div className="d-flex justify-content-center align-items-center">
-                            <div className="spinner-border spinner-border-sm me-2" role="status">
-                              <span className="visually-hidden">Cargando...</span>
-                            </div>
-                            Cargando papeletas...
-                          </div>
-                        </td>
-                      </tr>
-                    ) : errorPapeletas ? (
-                      <tr>
-                        <td colSpan="9" className="py-4 text-danger">
-                          <div className="d-flex justify-content-center align-items-center flex-column">
-                            <i className="bi bi-exclamation-triangle mb-2" style={{fontSize: '1.5rem'}}></i>
-                            {errorPapeletas}
-                            <button 
-                              className="btn btn-sm btn-outline-primary mt-2"
-                              onClick={cargarPapeletas}
-                            >
-                              Reintentar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : papeletasFiltradas.length > 0 ? (
-                      obtenerDatosPaginaActual(papeletasFiltradas).map(papeleta => (
-                        <tr key={papeleta.id || papeleta.codigo}>
-                          <td>{papeleta.codigo}</td>
-                          <td>{papeleta.trabajador}</td>
-                          <td>{papeleta.dni}</td>
-                          <td>{papeleta.area}</td>
-                          <td>{papeleta.fecha}</td>
-                          <td>{papeleta.motivo}</td>
-                          <td>{papeleta.oficinaVisitar}</td>
-                          <td>
-                            {papeleta.horaSalida && papeleta.horaRetorno ? 
-                              `${papeleta.horaSalida} - ${papeleta.horaRetorno}` : 
-                              papeleta.horaSalida ? 
-                                `${papeleta.horaSalida} - Sin retorno` : 
-                                'No especificado'
-                            }
-                          </td>
-                          <td>
-                            <button 
-                              className="btn btn-sm btn-outline-info"
-                              onClick={() => handleVer(papeleta.id)}
-                            >
-                              <i className="bi bi-eye me-1"></i>
-                              Ver
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="9" className="text-muted py-4">
-                          No se encontraron papeletas con los filtros aplicados
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+          <TablaPapeletas 
+            papeletas={obtenerDatosPaginaActual(papeletasFiltradas)}
+            cargando={cargandoPapeletas}
+            error={errorPapeletas}
+            totalFiltrados={papeletasFiltradas.length}
+            paginaActual={paginaActual}
+            elementosPorPagina={elementosPorPagina}
+            onCargarPapeletas={cargarPapeletas}
+            onVerDetalle={handleVer}
+          />
 
-              {/* Controles de paginación */}
-              {papeletasFiltradas.length > elementosPorPagina && (
-                <div className="d-flex justify-content-between align-items-center mt-3">
-                  <div className="text-muted small">
-                    Página {paginaActual} de {totalPaginas}
-                  </div>
-                  
-                  <nav aria-label="Navegación de páginas">
-                    <ul className="pagination pagination-sm mb-0">
-                      <li className={`page-item ${paginaActual === 1 ? 'disabled' : ''}`}>
-                        <button 
-                          className="page-link" 
-                          onClick={paginaAnterior}
-                          disabled={paginaActual === 1}
-                        >
-                          <i className="bi bi-chevron-left"></i>
-                          Anterior
-                        </button>
-                      </li>
-
-                      {/* Números de página */}
-                      {(() => {
-                        const paginas = [];
-                        const inicio = Math.max(1, paginaActual - 2);
-                        const fin = Math.min(totalPaginas, paginaActual + 2);
-                        
-                        // Mostrar primera página si no está en el rango
-                        if (inicio > 1) {
-                          paginas.push(
-                            <li key={1} className={`page-item ${paginaActual === 1 ? 'active' : ''}`}>
-                              <button className="page-link" onClick={() => irAPagina(1)}>1</button>
-                            </li>
-                          );
-                          if (inicio > 2) {
-                            paginas.push(
-                              <li key="dots1" className="page-item disabled">
-                                <span className="page-link">...</span>
-                              </li>
-                            );
-                          }
-                        }
-                        
-                        // Páginas en el rango actual
-                        for (let i = inicio; i <= fin; i++) {
-                          paginas.push(
-                            <li key={i} className={`page-item ${i === paginaActual ? 'active' : ''}`}>
-                              <button className="page-link" onClick={() => irAPagina(i)}>{i}</button>
-                            </li>
-                          );
-                        }
-                        
-                        // Mostrar última página si no está en el rango
-                        if (fin < totalPaginas) {
-                          if (fin < totalPaginas - 1) {
-                            paginas.push(
-                              <li key="dots2" className="page-item disabled">
-                                <span className="page-link">...</span>
-                              </li>
-                            );
-                          }
-                          paginas.push(
-                            <li key={totalPaginas} className={`page-item ${paginaActual === totalPaginas ? 'active' : ''}`}>
-                              <button className="page-link" onClick={() => irAPagina(totalPaginas)}>{totalPaginas}</button>
-                            </li>
-                          );
-                        }
-                        
-                        return paginas;
-                      })()}
-
-                      <li className={`page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`}>
-                        <button 
-                          className="page-link" 
-                          onClick={paginaSiguiente}
-                          disabled={paginaActual === totalPaginas}
-                        >
-                          Siguiente
-                          <i className="bi bi-chevron-right"></i>
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
-                  
-                  <div className="text-muted small">
-                    {elementosPorPagina} por página
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Controles de paginación */}
+          {papeletasFiltradas.length > elementosPorPagina && (
+            <Paginacion 
+              paginaActual={paginaActual}
+              totalPaginas={totalPaginas}
+              elementosPorPagina={elementosPorPagina}
+              onPaginaAnterior={paginaAnterior}
+              onPaginaSiguiente={paginaSiguiente}
+              onCambiarPagina={irAPagina}
+            />
+          )}
 
 
         </div>
 
-        {/* Modal de Detalles de Papeleta */}
-        {mostrarModalDetalle && (
-          <div className="modal fade show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} tabIndex="-1">
-            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-              <div className="modal-content">
-                <div className="modal-header bg-primary text-white">
-                  <h5 className="modal-title">
-                    <i className="bi bi-file-text me-2"></i>
-                    Detalles de la Papeleta
-                  </h5>
-                  <button 
-                    type="button" 
-                    className="btn-close btn-close-white" 
-                    onClick={handleCerrarModalDetalle}
-                    aria-label="Close"
-                  ></button>
-                </div>
-                
-                <div className="modal-body">
-                  {cargandoDetalle ? (
-                    <div className="d-flex justify-content-center align-items-center py-5">
-                      <div className="spinner-border text-primary me-3" role="status">
-                        <span className="visually-hidden">Cargando...</span>
-                      </div>
-                      <span>Cargando detalles de la papeleta...</span>
-                    </div>
-                  ) : errorDetalle ? (
-                    <div className="alert alert-danger d-flex align-items-center" role="alert">
-                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                      <div>
-                        <strong>Error:</strong> {errorDetalle}
-                      </div>
-                    </div>
-                  ) : papeletaDetalle ? (
-                    <div>
-                      {/* Información del Trabajador */}
-                      <div className="row mb-4">
-                        <div className="col-12">
-                          <h6 className="text-primary fw-bold border-bottom pb-2 mb-3">
-                            <i className="bi bi-person-fill me-2"></i>
-                            Información del Trabajador
-                          </h6>
-                        </div>
-                        <div className="col-md-6 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Nombre Completo</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.trabajador}</div>
-                        </div>
-                        <div className="col-md-3 mb-3">
-                          <label className="form-label fw-semibold text-muted small">DNI</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.dni}</div>
-                        </div>
-                        <div className="col-md-3 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Código</label>
-                          <div className="p-2 bg-light rounded fw-bold text-primary">{papeletaDetalle.codigo}</div>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Área</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.area}</div>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Cargo</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.cargo}</div>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Régimen Laboral</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.regimenLaboral}</div>
-                        </div>
-                      </div>
+        <ModalDetallePapeleta 
+          mostrar={mostrarModalDetalle}
+          papeleta={papeletaDetalle}
+          cargando={cargandoDetalle}
+          error={errorDetalle}
+          onCerrar={handleCerrarModalDetalle}
+          onEditar={handleAbrirEdicion}
+          puedeEditar={!isReadOnly}
+        />
 
-                      {/* Información de la Papeleta */}
-                      <div className="row mb-4">
-                        <div className="col-12">
-                          <h6 className="text-success fw-bold border-bottom pb-2 mb-3">
-                            <i className="bi bi-clipboard-check me-2"></i>
-                            Información de la Papeleta
-                          </h6>
-                        </div>
-                        <div className="col-md-6 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Oficina o Entidad a Visitar</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.oficinaVisitar}</div>
-                        </div>
-                        <div className="col-md-6 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Motivo</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.motivo}</div>
-                        </div>
-                        <div className="col-12 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Fundamentación</label>
-                          <div className="p-2 bg-light rounded" style={{minHeight: '60px'}}>
-                            {papeletaDetalle.fundamentacion}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Horarios y Fechas */}
-                      <div className="row mb-4">
-                        <div className="col-12">
-                          <h6 className="text-warning fw-bold border-bottom pb-2 mb-3">
-                            <i className="bi bi-calendar-clock me-2"></i>
-                            Horarios y Fechas
-                          </h6>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Fecha de la Papeleta</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.fecha}</div>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Hora de Salida</label>
-                          <div className="p-2 bg-light rounded">{papeletaDetalle.horaSalida}</div>
-                        </div>
-                        <div className="col-md-4 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Hora de Retorno</label>
-                          <div className={`p-2 rounded ${papeletaDetalle.horaRetorno === 'Sin retorno' ? 'bg-warning bg-opacity-25 text-warning-emphasis' : 'bg-light'}`}>
-                            {papeletaDetalle.horaRetorno}
-                          </div>
-                        </div>
-                        <div className="col-12 mb-3">
-                          <label className="form-label fw-semibold text-muted small">Fecha de Registro en el Sistema</label>
-                          <div className="p-2 bg-light rounded small text-muted">{papeletaDetalle.fechaCreacion}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                
-                <div className="modal-footer bg-light">
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary"
-                    onClick={handleCerrarModalDetalle}
-                  >
-                    <i className="bi bi-x-circle me-2"></i>
-                    Cerrar
-                  </button>
-                  {papeletaDetalle && (
-                    <button 
-                      type="button" 
-                      className="btn btn-primary"
-                      onClick={() => window.print()}
-                    >
-                      <i className="bi bi-printer me-2"></i>
-                      Imprimir
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ModalEditarPapeleta 
+          mostrar={mostrarModalEditar}
+          papeleta={papeletaEditar}
+          onCerrar={handleCerrarModalEditar}
+          onGuardar={handleGuardarEdicion}
+          cargando={cargandoEdicion}
+        />
 
         <footer className="text-center text-muted py-3 small">
           © 2025 Municipalidad Provincial de San Miguel — Módulo de Registro RRHH - Sistema Digital de Papeletas
         </footer>
-
-        {/* Panel de Estadísticas */}
-        <PanelEstadisticas
-          papeletas={papeletas}
-          isVisible={mostrarPanelEstadisticas}
-          onClose={() => setMostrarPanelEstadisticas(false)}
-        />
       </div>
+
+      {/* Panel de Estadísticas */}
+      <PanelEstadisticas
+        papeletas={papeletas}
+        isVisible={mostrarPanelEstadisticas}
+        onClose={cerrarPanelEstadisticas}
+      />
     </>
   );
 };

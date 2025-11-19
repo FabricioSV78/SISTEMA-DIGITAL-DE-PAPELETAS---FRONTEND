@@ -1,25 +1,29 @@
-// Configuración base de la API
-const API_BASE_URL = 'https://sistema-digital-de-papeletas-backend-production.up.railway.app';
+import { API_ENDPOINTS, getFullUrl, getAuthHeaders } from '../config/api';
+import { STORAGE_KEYS, MENSAJES_ERROR } from '../config/constants';
 
+/**
+ * Servicio de papeletas para manejar las llamadas a la API
+ */
 class PapeletaService {
   
-  // Obtener token de autorización (igual que adminService)
+  /**
+   * Obtener token de autorización
+   */
   getAuthToken() {
-    return sessionStorage.getItem('userToken');
+    return sessionStorage.getItem(STORAGE_KEYS.TOKEN);
   }
 
-  // Obtener headers con autenticación (igual que adminService)
+  /**
+   * Obtener headers con autenticación
+   */
   getHeaders() {
     const token = this.getAuthToken();
     
     if (!token) {
-      throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+      throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
     }
     
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
+    return getAuthHeaders(token);
   }
 
   // Crear nueva papeleta
@@ -47,20 +51,20 @@ class PapeletaService {
         regimen: papeletaData.regimenLaboral || ''
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/rrhh/crear-papeletas`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.RRHH.CREAR_PAPELETA), {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(datosParaBackend)
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error del servidor' }));
+        const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
         
         if (response.status === 401) {
           // Token inválido o expirado
-          sessionStorage.removeItem('userToken');
-          sessionStorage.removeItem('userData');
-          throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+          sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+          sessionStorage.removeItem(STORAGE_KEYS.USER);
+          throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
         }
         
         if (response.status === 422) {
@@ -190,10 +194,74 @@ class PapeletaService {
     return `${horas}:${minutos}:${segundos}.${milisegundos}Z`;
   }
 
+  // Actualizar papeleta existente
+  async actualizarPapeleta(papeletaId, papeletaData) {
+    try {
+      // Validar datos antes de enviar
+      const validacion = this.validarDatosPapeleta(papeletaData);
+      if (!validacion.esValido) {
+        throw new Error(validacion.mensaje);
+      }
+
+      // Preparar datos en el formato esperado por el backend
+      const datosParaBackend = {
+        nombre: papeletaData.nombreCompleto,
+        dni: papeletaData.dni,
+        codigo: papeletaData.codigo,
+        area: papeletaData.area,
+        cargo: papeletaData.cargo || '',
+        motivo: papeletaData.motivo || '',
+        oficina_entidad: papeletaData.oficinaVisitar || '',
+        fundamentacion: papeletaData.fundamentacion || '',
+        fecha: papeletaData.fecha,
+        hora_salida: this.formatearHora(papeletaData.horaSalida),
+        hora_retorno: papeletaData.horaRetorno ? this.formatearHora(papeletaData.horaRetorno) : null,
+        regimen: papeletaData.regimenLaboral || ''
+      };
+
+      const response = await fetch(getFullUrl(API_ENDPOINTS.RRHH.ACTUALIZAR_PAPELETA(papeletaId)), {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(datosParaBackend)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
+        
+        if (response.status === 401) {
+          sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+          sessionStorage.removeItem(STORAGE_KEYS.USER);
+          throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
+        }
+        
+        if (response.status === 422) {
+          const validationErrors = errorData.errors || errorData.details || errorData.message;
+          throw new Error(`Error de validación: ${JSON.stringify(validationErrors)}`);
+        }
+        
+        throw new Error(errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const resultado = await response.json();
+      return {
+        exito: true,
+        mensaje: resultado.message || 'Papeleta actualizada correctamente',
+        datos: resultado
+      };
+
+    } catch (error) {
+      console.error('Error al actualizar papeleta:', error);
+      return {
+        exito: false,
+        mensaje: error.message || 'Error al actualizar la papeleta'
+      };
+    }
+  }
+
   // Obtener todas las papeletas desde el backend
   async obtenerPapeletas() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rrhh/papeletas`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.RRHH.OBTENER_PAPELETAS), {
         method: 'GET',
         headers: this.getHeaders()
       });
@@ -267,19 +335,19 @@ class PapeletaService {
   // Obtener detalles de una papeleta específica por ID
   async obtenerPapeletaPorId(papeletaId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rrhh/papeletas/${papeletaId}`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.RRHH.OBTENER_PAPELETA(papeletaId)), {
         method: 'GET',
         headers: this.getHeaders()
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error del servidor' }));
+        const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
         
         if (response.status === 401) {
           // Token inválido o expirado
-          sessionStorage.removeItem('userToken');
-          sessionStorage.removeItem('userData');
-          throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+          sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+          sessionStorage.removeItem(STORAGE_KEYS.USER);
+          throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
         }
         
         if (response.status === 404) {
@@ -347,19 +415,19 @@ class PapeletaService {
         };
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/rrhh/empleado/${dni}`, {
+      const response = await fetch(getFullUrl(API_ENDPOINTS.RRHH.BUSCAR_EMPLEADO(dni)), {
         method: 'GET',
         headers: this.getHeaders()
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error del servidor' }));
+        const errorData = await response.json().catch(() => ({ message: MENSAJES_ERROR.ERROR_SERVIDOR }));
         
         if (response.status === 401) {
           // Token inválido o expirado
-          sessionStorage.removeItem('userToken');
-          sessionStorage.removeItem('userData');
-          throw new Error('No hay sesión activa. Por favor, inicie sesión nuevamente.');
+          sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+          sessionStorage.removeItem(STORAGE_KEYS.USER);
+          throw new Error(MENSAJES_ERROR.SESION_EXPIRADA);
         }
         
         if (response.status === 404) {
