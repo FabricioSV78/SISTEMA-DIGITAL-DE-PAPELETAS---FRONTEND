@@ -562,15 +562,21 @@ const RRHH = () => {
                       required
                     >
                       <option value="">Seleccionar área</option>
-                      <option value="Recursos Humanos">Recursos Humanos</option>
-                      <option value="Logística">Logística</option>
-                      <option value="Contabilidad">Contabilidad</option>
-                      <option value="Desarrollo Urbano">Desarrollo Urbano</option>
+                      <option value="Alcaldía">Alcaldía</option>
                       <option value="Gerencia Municipal">Gerencia Municipal</option>
                       <option value="Secretaría General">Secretaría General</option>
-                      <option value="Trámite Documentario">Trámite Documentario</option>
-                      <option value="Planeamiento y Presupuesto">Planeamiento y Presupuesto</option>
-                      <option value="Servicios Públicos">Servicios Públicos</option>
+                      <option value="Asesoría Jurídica">Asesoría Jurídica</option>
+                      <option value="Oficina General de Administración y Finanzas">Oficina General de Administración y Finanzas</option>
+                      <option value="Oficina de Tesorería">Oficina de Tesorería</option>
+                      <option value="Oficina de Tecnologías de La Información">Oficina de Tecnologías de La Información</option>
+                      <option value="Oficina de Recursos Humanos">Oficina de Recursos Humanos</option>
+                      <option value="Oficina de Abastecimiento y Control Patrimonial">Oficina de Abastecimiento y Control Patrimonial</option>
+                      <option value="Oficina de Planeamiento y Presupuesto">Oficina de Planeamiento y Presupuesto</option>
+                      <option value="Gerencia de Administración Tributaria">Gerencia de Administración Tributaria</option>
+                      <option value="Gerencia Desarrollo Económico y Ambiental">Gerencia Desarrollo Económico y Ambiental</option>
+                      <option value="Gerencia de Infraestructura">Gerencia de Infraestructura</option>
+                      <option value="Gerencia de Desarrollo Territorial y Transporte">Gerencia de Desarrollo Territorial y Transporte</option>
+                      <option value="Gerencia de Desarrollo Social y Humano">Gerencia de Desarrollo Social y Humano</option>
                     </select>
                   </div>
 

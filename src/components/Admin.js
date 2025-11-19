@@ -299,6 +299,7 @@ const Admin = () => {
     }
   };
 
+  /* Backup / Restore handlers temporarily disabled while backend integration is pending
   const handleGenerateBackup = () => {
     // TODO: Implementar lógica de backup
     alert('Respaldo generado exitosamente');
@@ -311,6 +312,7 @@ const Admin = () => {
       alert(`Archivo ${file.name} cargado para restauración`);
     }
   };
+  */
 
   return (
     <>
@@ -614,7 +616,7 @@ const Admin = () => {
             </div>
           </div>
 
-          {/* Respaldo y restauración */}
+          {/*
           <div className="card shadow-sm mb-5">
             <div className="card-body">
               <h5 className="fw-semibold text-primary mb-4 text-center">
@@ -659,6 +661,7 @@ const Admin = () => {
               </div>
             </div>
           </div>
+          */}
         </div>
 
         {/* Modal de Edición de Usuario */}
