@@ -26,6 +26,54 @@ class PapeletaService {
     return getAuthHeaders(token);
   }
 
+  // Formatea un array de errores de validación (Pydantic u otros) a un mensaje amigable
+  formatValidationErrors(errorsArray) {
+    if (!Array.isArray(errorsArray) || errorsArray.length === 0) return 'Hay errores de validación en los datos.';
+
+    const fieldNamesMap = {
+      nombre: 'Nombre',
+      nombreCompleto: 'Nombre completo',
+      dni: 'DNI',
+      codigo: 'Código',
+      area: 'Área',
+      fundamentacion: 'Fundamentación',
+      fecha: 'Fecha',
+      horaSalida: 'Hora de salida',
+      horaRetorno: 'Hora de retorno'
+    };
+
+    const parts = errorsArray.map(err => {
+      // intentar extraer campo
+      const field = err.field || (Array.isArray(err.loc) ? err.loc[err.loc.length - 1] : null) || err.name || null;
+      // intentar extraer mensaje
+      let msg = err.message || err.msg || err.detail || err.message_text || JSON.stringify(err);
+
+      const prettyField = fieldNamesMap[field] || (field ? String(field) : null) || 'Este campo';
+
+      // Detectar mensajes de 'required' (obligatorio)
+      if (/required|is required|must not be null|missing/i.test(String(msg))) {
+        return `El campo ${prettyField} es obligatorio`;
+      }
+
+      // Detectar restricción de longitud y devolver un mensaje más simple
+      const m = String(msg).match(/should have at least (\d+) characters/i);
+      if (m) {
+        return `Falta completar ${prettyField}`;
+      }
+
+      // Si el mensaje contiene 'length' o 'too short' también mapear a 'falta completar'
+      if (/length|too short|min.*char/i.test(String(msg))) {
+        return `Falta completar ${prettyField}`;
+      }
+
+      // Por defecto, devolver una versión legible
+      return `${prettyField}: ${String(msg)}`;
+    });
+
+    // Unir en una sola frase legible
+    return `Por favor corrija los siguientes errores: ${parts.join('; ')}`;
+  }
+
   // Crear nueva papeleta
   async crearPapeleta(papeletaData) {
     try {
@@ -77,9 +125,9 @@ class PapeletaService {
             if (codigoErr) {
               return { exito: false, mensaje: codigoErr.message || 'Código inválido', fieldError: { field: 'codigo', message: codigoErr.message || 'Código inválido' } };
             }
-            // Si no, devolver un mensaje general con concatenación
-            const summary = errorsArray.map(e => e.message || JSON.stringify(e)).join('; ');
-            return { exito: false, mensaje: `Errores de validación: ${summary}` };
+            // Si no, formatear y devolver un mensaje amigable para el usuario
+            const friendly = this.formatValidationErrors(errorsArray);
+            return { exito: false, mensaje: friendly };
           }
 
           const validationErrors = errorData.errors || errorData.details || errorData.message;
@@ -274,8 +322,8 @@ class PapeletaService {
             if (codigoErr) {
               return { exito: false, mensaje: codigoErr.message || 'Código inválido', fieldError: { field: 'codigo', message: codigoErr.message || 'Código inválido' } };
             }
-            const summary = errorsArray.map(e => e.message || JSON.stringify(e)).join('; ');
-            return { exito: false, mensaje: `Errores de validación: ${summary}` };
+            const friendly = this.formatValidationErrors(errorsArray);
+            return { exito: false, mensaje: friendly };
           }
           const validationErrors = errorData.errors || errorData.details || errorData.message;
           return { exito: false, mensaje: `Error de validación: ${JSON.stringify(validationErrors)}` };

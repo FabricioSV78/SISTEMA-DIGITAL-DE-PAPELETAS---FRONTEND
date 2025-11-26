@@ -11,6 +11,7 @@ import html2pdf from 'html2pdf.js';
 export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, opts = {}) {
   const title = opts.title || 'Reporte de Papeletas';
   const fechaGeneracion = new Date().toLocaleString();
+  const logoUrl = opts.logo || '/muni-c.png';
 
   // Resumen de filtros aplicados
   const filtrosAplicados = [];
@@ -38,6 +39,7 @@ export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, o
       <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.area || '')}</td>
       <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.fecha || '')}</td>
       <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.motivo || '')}</td>
+      <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.regimenLaboral || '')}</td>
       <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.oficinaVisitar || '')}</td>
       <td style="border:1px solid #ddd; padding:8px">${escapeHtml(p.horaSalida ? (p.horaRetorno ? p.horaSalida + ' - ' + p.horaRetorno : p.horaSalida + ' - Sin retorno') : (p.horaRetorno ? p.horaRetorno : ''))}</td>
     </tr>
@@ -47,10 +49,25 @@ export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, o
   if (papeletasFiltradas.length === 1 && opts.detail) {
     const p = papeletasFiltradas[0];
     const detalleHtml = `
-      <div style="font-family: Arial, Helvetica, sans-serif; color: #222; padding: 18px; max-width:800px; margin:0 auto;">
-        <header style="margin-bottom:12px; text-align:left;">
-          <h1 style="font-size:18px; margin:0 0 4px 0">${escapeHtml(title)}</h1>
-          <div style="font-size:12px; color:#555">Generado: ${escapeHtml(fechaGeneracion)} • Filtros: ${escapeHtml(filtrosHtml)}</div>
+      <style>
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; break-inside: avoid; }
+        td, th { page-break-inside: avoid; -webkit-column-break-inside: avoid; }
+        @media print {
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; break-inside: avoid; }
+        }
+      </style>
+      <div style="font-family: Arial, Helvetica, sans-serif; color: #222; padding: 18px; max-width:800px; margin:0 auto; background:#fff;">
+        <header style="margin-bottom:12px; display:flex; align-items:center; gap:12px;">
+          <img src="${escapeHtml(logoUrl)}" alt="Logo" style="width:84px; height:auto; object-fit:contain;" crossorigin="anonymous" />
+          <div style="flex:1">
+            <h1 style="font-size:18px; margin:0 0 4px 0; color:#0d6efd">${escapeHtml(title)}</h1>
+            <div style="font-size:12px; color:#555">Municipalidad Provincial de San Miguel • Generado: ${escapeHtml(fechaGeneracion)}</div>
+            <div style="font-size:12px; color:#666; margin-top:6px">Filtros: ${escapeHtml(filtrosHtml)}</div>
+          </div>
         </header>
 
         <section style="margin-top:14px; margin-bottom:14px; border:1px solid #e9ecef; padding:12px; border-radius:6px; background:#fff;">
@@ -63,7 +80,7 @@ export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, o
               <td style="padding:8px">${escapeHtml(p.dni || '')}</td>
             </tr>
             <tr>
-              <td style="width:30%; padding:8px; background:#f8f9fa;"><strong>Código</strong></td>
+              <td style="width:30%; padding:8px; background:#f8f9fa;"><strong>Cod-papeleta</strong></td>
               <td style="padding:8px">${escapeHtml(p.codigo || '')}</td>
               <td style="width:20%; padding:8px; background:#f8f9fa;"><strong>Área</strong></td>
               <td style="padding:8px">${escapeHtml(p.area || '')}</td>
@@ -81,7 +98,7 @@ export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, o
           <h2 style="font-size:13px; margin:0 0 10px 0; color:#198754; border-bottom:1px dashed #e9ecef; padding-bottom:8px;">Información de la Papeleta</h2>
           <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
             <tr>
-              <td style="width:30%; padding:8px; background:#f8f9fa;"><strong>Oficina / Entidad</strong></td>
+              <td style="width:30%; padding:8px; background:#f8f9fa;"><strong>Entidad visitada</strong></td>
               <td style="padding:8px">${escapeHtml(p.oficinaVisitar || '')}</td>
               <td style="width:20%; padding:8px; background:#f8f9fa;"><strong>Motivo</strong></td>
               <td style="padding:8px">${escapeHtml(p.motivo || '')}</td>
@@ -140,25 +157,44 @@ export async function generarPdfReporte(papeletasFiltradas = [], filtros = {}, o
     return;
   }
 
-  const html = `
-    <div style="font-family: Arial, Helvetica, sans-serif; color: #222; padding: 10px;">
-      <h1 style="font-size:18px; margin-bottom:6px">${escapeHtml(title)}</h1>
-      <div style="font-size:12px; color:#555; margin-bottom:12px">Generado: ${escapeHtml(fechaGeneracion)} &nbsp;|&nbsp; Filtros: ${escapeHtml(filtrosHtml)} &nbsp;|&nbsp; Resultados: ${papeletasFiltradas.length}</div>
-      <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:12px;">
+    const html = `
+    <style>
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr { page-break-inside: avoid; break-inside: avoid; }
+      td, th { page-break-inside: avoid; -webkit-column-break-inside: avoid; }
+      @media print {
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; break-inside: avoid; }
+      }
+    </style>
+    <div style="font-family: Arial, Helvetica, sans-serif; color: #222; padding: 14px; background:#fff;">
+      <header style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <img src="${escapeHtml(logoUrl)}" alt="Logo" style="width:84px; height:auto; object-fit:contain;" crossorigin="anonymous" />
+        <div style="flex:1">
+          <h1 style="font-size:18px; margin:0 0 4px 0; color:#0d6efd">${escapeHtml(title)}</h1>
+          <div style="font-size:12px; color:#555">Municipalidad Provincial de San Miguel</div>
+        </div>
+        <div style="text-align:right; font-size:11px; color:#666">Generado: ${escapeHtml(fechaGeneracion)}<br/>Resultados: ${papeletasFiltradas.length}</div>
+      </header>
+      <div style="font-size:12px; color:#666; margin-bottom:10px">Filtros: ${escapeHtml(filtrosHtml)}</div>
+      <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:12px;">
         <thead>
           <tr>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Código</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Trabajador</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">DNI</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Área</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Fecha</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Motivo</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Oficina</th>
-            <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5">Horario</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Cod-papeleta</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Trabajador</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">DNI</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Área</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Fecha</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Motivo</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Régimen</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Entidad visitada</th>
+            <th style="border:1px solid #ddd; padding:8px; background:#f8f9fa; color:#333; text-align:left">Horario</th>
           </tr>
         </thead>
         <tbody>
-          ${rows || '<tr><td colspan="8" style="text-align:center; padding:8px;">No hay registros</td></tr>'}
+          ${rows || '<tr><td colspan="9" style="text-align:center; padding:8px;">No hay registros</td></tr>'}
         </tbody>
       </table>
     </div>

@@ -17,17 +17,30 @@ const Autocomplete = ({ name, value, onChange, suggestions = [], placeholder = '
     setQuery(value || '');
   }, [value]);
 
+  // Helper para normalizar (quitar tildes/diacríticos) y comparar
+  const normalize = (str) => {
+    if (!str) return '';
+    try {
+      return String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    } catch (err) {
+      return String(str).toLowerCase();
+    }
+  };
+
   useEffect(() => {
     if (!query) {
-      setFiltered(suggestions.slice(0, 8));
+      setFiltered(suggestions.slice(0, 10));
       return;
     }
 
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
+    const qNorm = normalize(q);
+
     const results = suggestions
-      .map(s => ({ s, i: s.toLowerCase().indexOf(q) }))
+      .map(s => ({ s, n: normalize(s) }))
+      .map(x => ({ s: x.s, i: x.n.indexOf(qNorm), n: x.n }))
       .filter(x => x.i !== -1)
-      .sort((a, b) => a.i - b.i || a.s.localeCompare(b.s))
+      .sort((a, b) => a.i - b.i || a.n.localeCompare(b.n))
       .map(x => x.s)
       .slice(0, 8);
 
